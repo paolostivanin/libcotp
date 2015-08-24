@@ -2,14 +2,13 @@
 #include <time.h>
 #include <string.h>
 #include <gcrypt.h>
-#include <math.h>
 #include <stdint.h>
 
 #define BITS_PER_BASE32_CHAR 5
 
 /* ToDo:
  * - 2 funcs, 1 google auth based and 1 normal otp
- * - decide between 6 or 8 digits
+ * - add possibility to retrieve only HOTP (see how to create C)
  */
 
 int base32_decode (const uint8_t *, uint8_t *, int);
@@ -70,22 +69,33 @@ int HOTP (const char *K, long C, int N)
 }
 
 
-int TOTP (const char *K, int N)
+char *TOTP (const char *K, int N)
 {
+    if ((N != 6) && (N != 8))
+    {
+        printf ("[E]: You must choose between 6 or 8 digits\n");
+        return NULL;
+    }
+    char *token = NULL;
+    int tk;
     long TC = ((long) time (NULL))/30;
-    return HOTP(K, TC, N);
+    tk = HOTP(K, TC, N);
+    token = malloc (N+1);
+    if (token == NULL)
+    {
+        printf ("[E] Error during memory allocation\n");
+        return NULL;
+    }
+    else
+    {
+        if (N == 6)
+            snprintf(token, 7, "%.6d", tk);
+        else
+            snprintf(token, 9, "%.8d", tk);
+    }
+    return token;
 }
 
-int main (void)
-{
-    int i;
-    int tk = TOTP("", 6); // write secret token. Get it from argv or from encrypted file? 6 or 8 digits?
-    int digits = floor (log10 (abs (tk))) + 1;
-    if (digits < 6)
-    {
-        for (i=0; i<(6-digits); i++)
-            printf("0");
-    }
-    printf ("%d\n", tk);
-    return 0;
-}
+
+
+
