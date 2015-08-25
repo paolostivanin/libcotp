@@ -8,7 +8,6 @@
 
 /* ToDo:
  * - 2 funcs, 1 google auth based and 1 normal otp
- * - add possibility to retrieve only HOTP (see how to create C)
  */
 
 int base32_decode (const uint8_t *, uint8_t *, int);
@@ -61,25 +60,9 @@ unsigned char *HMAC (const char *K, long C)
 }
 
 
-int HOTP (const char *K, long C, int N)
+char *finalize (int N, int tk)
 {
-    unsigned char *hmac = HMAC(K, C);
-    int token = Truncate (hmac, N);
-    return token;
-}
-
-
-char *TOTP (const char *K, int N)
-{
-    if ((N != 6) && (N != 8))
-    {
-        printf ("[E]: You must choose between 6 or 8 digits\n");
-        return NULL;
-    }
-    char *token = NULL;
-    int tk;
-    long TC = ((long) time (NULL))/30;
-    tk = HOTP(K, TC, N);
+	char *token = NULL;
     token = malloc (N+1);
     if (token == NULL)
     {
@@ -97,5 +80,33 @@ char *TOTP (const char *K, int N)
 }
 
 
+int check_otp_len(int N)
+{
+	if ((N != 6) && (N != 8))
+    {
+        printf ("[E]: You must choose between 6 or 8 digits\n");
+        return -1;
+    }
+    else
+    	return 0;
+}
 
 
+char *HOTP (const char *K, long C, int N)
+{
+    if (check_otp_len(N) == -1)
+    	return -1
+    unsigned char *hmac = HMAC(K, C);
+    int tk = Truncate (hmac, N);
+    return finalize (N, tk);
+}
+
+
+char *TOTP (const char *K, int N)
+{
+    if (check_otp_len(N) == -1)
+    	return -1;
+    long TC = ((long) time (NULL))/30;
+    int tk = HOTP(K, TC, N);
+    return finalize (N, tk);
+}
