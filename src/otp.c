@@ -80,7 +80,7 @@ char *finalize (int N, int tk)
 }
 
 
-int check_otp_len(int N)
+int check_otp_len (int N)
 {
 	if ((N != 6) && (N != 8))
     {
@@ -95,7 +95,7 @@ int check_otp_len(int N)
 char *HOTP (const char *K, long C, int N)
 {
     if (check_otp_len(N) == -1)
-    	return -1
+    	return NULL;
     unsigned char *hmac = HMAC(K, C);
     int tk = Truncate (hmac, N);
     return finalize (N, tk);
@@ -105,7 +105,7 @@ char *HOTP (const char *K, long C, int N)
 char *TOTP (const char *K, int N)
 {
     if (check_otp_len(N) == -1)
-    	return -1;
+    	return NULL;
     long TC = ((long) time (NULL))/30;
     int tk = HOTP(K, TC, N);
     return finalize (N, tk);
