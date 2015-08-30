@@ -8,6 +8,7 @@
 
 /* ToDo:
  * - 2 funcs, 1 google auth based and 1 normal otp
+ * -initialization (allocate memory) and finalization (free memory)
  */
 
 int base32_decode (const uint8_t *, uint8_t *, int);
@@ -15,15 +16,19 @@ int base32_encode (const uint8_t *, int, uint8_t *, int);
 
 int DIGITS_POWER[] = {1,10,100,1000,10000,100000,1000000,10000000,100000000};
 
-int Truncate (unsigned char *hmac, int N)
+
+int
+truncate (unsigned char *hmac, int N)
 {
-    int O = (hmac[19] & 0x0f);
-    int bin_code = ((hmac[O] & 0x7f) << 24) | ((hmac[O+1] & 0xff) << 16) | ((hmac[O+2] & 0xff) << 8) | ((hmac[O+3] & 0xff));
+    int offset = (hmac[19] & 0x0f);
+    int bin_code = ((hmac[offset] & 0x7f) << 24) | ((hmac[offset+1] & 0xff) << 16) | ((hmac[offset+2] & 0xff) << 8) | ((hmac[offset+3] & 0xff));
     int token = bin_code % DIGITS_POWER[N];
     return token;
 }
 
-unsigned char *HMAC (const char *K, long C)
+
+unsigned char
+*compute_hmac (const char *K, long C)
 {
 	/* Estimated number of bytes needed to represent the decoded secret. Because
 	 * of white-space and separators, this is an upper bound of the real number,
@@ -48,7 +53,7 @@ unsigned char *HMAC (const char *K, long C)
     unsigned char C_reverse_byte_order[8];
     int j, i;
     for (j=0, i=7; j<8 && i>=0; j++, i--)
-        C_reverse_byte_order[i] = ((unsigned char *)&C)[j];
+        C_reverse_byte_order[i] = ((unsigned char *) &C)[j];
 
     gcry_md_hd_t hd;
     gcry_md_open (&hd, GCRY_MD_SHA1, GCRY_MD_FLAG_HMAC);
@@ -60,7 +65,8 @@ unsigned char *HMAC (const char *K, long C)
 }
 
 
-char *finalize (int N, int tk)
+char
+*finalize (int N, int tk)
 {
 	char *token = NULL;
     token = malloc (N+1);
@@ -72,15 +78,16 @@ char *finalize (int N, int tk)
     else
     {
         if (N == 6)
-            snprintf(token, 7, "%.6d", tk);
+            snprintf (token, 7, "%.6d", tk);
         else
-            snprintf(token, 9, "%.8d", tk);
+            snprintf (token, 9, "%.8d", tk);
     }
     return token;
 }
 
 
-int check_otp_len (int N)
+int
+check_otp_len (int N)
 {
 	if ((N != 6) && (N != 8))
     {
@@ -92,21 +99,24 @@ int check_otp_len (int N)
 }
 
 
-char *HOTP (const char *K, long C, int N)
+char
+*get_hotp (const char *K, long C, int N)
 {
-    if (check_otp_len(N) == -1)
+    if (check_otp_len (N) == -1)
     	return NULL;
-    unsigned char *hmac = HMAC(K, C);
-    int tk = Truncate (hmac, N);
-    return finalize (N, tk);
+    unsigned char *hmac = compute_hmac (K, C);
+    int tk = truncate (hmac, N);
+    char *token = finalize (N, tk);
+    return token;
 }
 
 
-char *TOTP (const char *K, int N)
+char
+*get_totp (const char *K, int N)
 {
     if (check_otp_len(N) == -1)
     	return NULL;
     long TC = ((long) time (NULL))/30;
-    int tk = HOTP(K, TC, N);
-    return finalize (N, tk);
+    char *token = get_hotp (K, TC, N);
+    return token;
 }
