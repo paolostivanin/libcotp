@@ -5,10 +5,10 @@ How To Use It
 -------------
 
 ```
-char *totp = TOTP('secretkey', digits);
+char *totp = get_totp ('secretkey', digits);
 free (totp)
 
-char *hotp = HOTP('secretkey', counter, digits);
+char *hotp = get_hotp ('secretkey', counter, digits);
 free (hotp);
 ```
 
