@@ -8,7 +8,6 @@
 
 /* ToDo:
  * - 2 funcs, 1 google auth based and 1 normal otp
- * -initialization (allocate memory) and finalization (free memory)
  */
 
 int base32_decode (const uint8_t *, uint8_t *, int);
