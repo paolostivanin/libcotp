@@ -20,7 +20,7 @@ else
     ln -s /usr/lib/${LIBNAMEVER} /usr/lib/${LIBNAME}
 fi
 
-echo "[I] Installation finished. Cleanin-up build files..."
+echo "[I] Installation finished. Cleaning-up build files..."
 rm -v src/base32.o
 rm -v src/otp.o
 

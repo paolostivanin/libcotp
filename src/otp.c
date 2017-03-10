@@ -4,19 +4,18 @@
 #include <gcrypt.h>
 #include <stdint.h>
 
+#define TOTP_NOT_VALID 0
+#define TOTP_VALID 1
+
 #define BITS_PER_BASE32_CHAR 5
 
-/* ToDo:
- * - 2 funcs, 1 google auth based and 1 normal otp
- */
+static int base32_decode (const uint8_t *, uint8_t *, int);
+static int base32_encode (const uint8_t *, int, uint8_t *, int);
 
-int base32_decode (const uint8_t *, uint8_t *, int);
-int base32_encode (const uint8_t *, int, uint8_t *, int);
-
-int DIGITS_POWER[] = {1,10,100,1000,10000,100000,1000000,10000000,100000000};
+static int DIGITS_POWER[] = {1,10,100,1000,10000,100000,1000000,10000000,100000000};
 
 
-int
+static int
 truncate (unsigned char *hmac, int N)
 {
     int offset = (hmac[19] & 0x0f);
@@ -26,7 +25,7 @@ truncate (unsigned char *hmac, int N)
 }
 
 
-unsigned char
+static unsigned char
 *compute_hmac (const char *K, long C)
 {
 	/* Estimated number of bytes needed to represent the decoded secret. Because
@@ -64,18 +63,15 @@ unsigned char
 }
 
 
-char
+static char
 *finalize (int N, int tk)
 {
 	char *token = NULL;
     token = malloc (N+1);
-    if (token == NULL)
-    {
+    if (token == NULL) {
         printf ("[E] Error during memory allocation\n");
         return NULL;
-    }
-    else
-    {
+    } else {
         if (N == 6)
             snprintf (token, 7, "%.6d", tk);
         else
@@ -85,16 +81,15 @@ char
 }
 
 
-int
+static int
 check_otp_len (int N)
 {
-	if ((N != 6) && (N != 8))
-    {
+	if ((N != 6) && (N != 8)) {
         printf ("[E]: You must choose between 6 or 8 digits\n");
         return -1;
+    } else {
+        return 0;
     }
-    else
-    	return 0;
 }
 
 
@@ -103,6 +98,7 @@ char
 {
     if (check_otp_len (N) == -1)
     	return NULL;
+
     unsigned char *hmac = compute_hmac (K, C);
     int tk = truncate (hmac, N);
     char *token = finalize (N, tk);
@@ -113,9 +109,25 @@ char
 char
 *get_totp (const char *K, int N)
 {
-    if (check_otp_len(N) == -1)
+    if (check_otp_len (N) == -1)
     	return NULL;
+
     long TC = ((long) time (NULL))/30;
     char *token = get_hotp (K, TC, N);
     return token;
+}
+
+
+int
+totp_verify (const char *K, int N, const char *user_totp)
+{
+    int token_status;
+    char *current_totp = get_totp (K, N);
+    if (strcmp (current_totp, user_totp) != 0) {
+        token_status = TOTP_NOT_VALID;
+    } else {
+        token_status = TOTP_VALID;
+    }
+    free (current_totp);
+    return token_status;
 }
