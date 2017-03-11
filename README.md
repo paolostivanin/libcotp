@@ -11,7 +11,9 @@ free (totp);
 char *hotp = get_hotp ('secretkey', counter, digits);
 free (hotp);
 
-int is_valid = totp_verify ('secretkey', counter, 'totp'); // returns either TOTP_VALID or TOTP_NOT_VALID
+int is_valid = totp_verify ('secretkey', digits, 'totp'); // returns either TOTP_VALID or TOTP_NOT_VALID
+
+int is_valid = hotp_verify ('secretkey', counter, digits, 'hotp'); // returns either HOTP_VALID or HOTP_NOT_VALID
 ```
 
 where ```digits``` is either ```6``` or ```8``` and ```counter``` is a value decided with the server. 

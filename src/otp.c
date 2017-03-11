@@ -6,11 +6,13 @@
 
 #define TOTP_NOT_VALID 0
 #define TOTP_VALID 1
+#define HOTP_NOT_VALID TOTP_NOT_VALID
+#define HOTP_VALID TOTP_VALID
 
 #define BITS_PER_BASE32_CHAR 5
 
-static int base32_decode (const uint8_t *, uint8_t *, int);
-static int base32_encode (const uint8_t *, int, uint8_t *, int);
+int base32_decode (const uint8_t *, uint8_t *, int);
+int base32_encode (const uint8_t *, int, uint8_t *, int);
 
 static int DIGITS_POWER[] = {1,10,100,1000,10000,100000,1000000,10000000,100000000};
 
@@ -129,5 +131,20 @@ totp_verify (const char *K, int N, const char *user_totp)
         token_status = TOTP_VALID;
     }
     free (current_totp);
+    return token_status;
+}
+
+
+int
+hotp_verify (const char *K, long C, int N, const char *user_hotp)
+{
+    int token_status;
+    char *current_hotp = get_hotp (K, C, N);
+    if (strcmp (current_hotp, user_hotp) != 0) {
+        token_status = HOTP_NOT_VALID;
+    } else {
+        token_status = HOTP_VALID;
+    }
+    free (current_hotp);
     return token_status;
 }
