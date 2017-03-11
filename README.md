@@ -1,6 +1,17 @@
 # libcotp
 C library that generates TOTP and HOTP
 
+Build and Install
+------------
+```
+$ git clone https://github.com/paolostivanin/libcotp.git
+$ cd libcotp
+$ mkdir build && cd $_
+$ cmake -DCMAKE_INSTALL_PREFIX:PATH=/usr ../
+$ make
+# make install
+```
+
 How To Use It
 -------------
 
