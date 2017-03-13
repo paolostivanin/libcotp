@@ -4,6 +4,7 @@
 #include <gcrypt.h>
 #include <stdint.h>
 
+#define GCRYPT_VERSION_MISMATCH -1
 #define TOTP_NOT_VALID 0
 #define TOTP_VALID 1
 #define HOTP_NOT_VALID TOTP_NOT_VALID
@@ -15,6 +16,21 @@ int base32_decode (const uint8_t *, uint8_t *, int);
 int base32_encode (const uint8_t *, int, uint8_t *, int);
 
 static int DIGITS_POWER[] = {1,10,100,1000,10000,100000,1000000,10000000,100000000};
+
+static int
+check_gcrypt ()
+{
+    if (!gcry_control (GCRYCTL_INITIALIZATION_FINISHED_P)) {
+        fprintf (stdout, "[INFO] libgcrypt has not been initialized by the main program, doing it from within the library.\n");
+        if (!gcry_check_version ("1.5.0")) {
+            fprintf (stderr, "libgcrypt v1.5.0 and above is required\n");
+            return -1;
+        }
+        gcry_control (GCRYCTL_DISABLE_SECMEM, 0);
+        gcry_control (GCRYCTL_INITIALIZATION_FINISHED, 0);
+    }
+    return 0;
+}
 
 
 static int
@@ -87,10 +103,10 @@ static int
 check_otp_len (int N)
 {
 	if ((N != 6) && (N != 8)) {
-        printf ("[E]: You must choose between 6 or 8 digits\n");
-        return -1;
+        fprintf (stderr, "Only 6 or 8 is allowed as number of digits. Falling back to 6.\n");
+        return 6;
     } else {
-        return 0;
+        return N;
     }
 }
 
@@ -98,8 +114,10 @@ check_otp_len (int N)
 char
 *get_hotp (const char *K, long C, int N)
 {
-    if (check_otp_len (N) == -1)
-    	return NULL;
+    if (check_gcrypt () == -1)
+        return NULL;
+
+    N = check_otp_len (N);
 
     unsigned char *hmac = compute_hmac (K, C);
     int tk = truncate (hmac, N);
@@ -111,8 +129,10 @@ char
 char
 *get_totp (const char *K, int N)
 {
-    if (check_otp_len (N) == -1)
-    	return NULL;
+    if (check_gcrypt () == -1)
+        return NULL;
+
+    N = check_otp_len (N);
 
     long TC = ((long) time (NULL))/30;
     char *token = get_hotp (K, TC, N);
@@ -125,6 +145,9 @@ totp_verify (const char *K, int N, const char *user_totp)
 {
     int token_status;
     char *current_totp = get_totp (K, N);
+    if (current_totp == NULL) {
+        return GCRYPT_VERSION_MISMATCH;
+    }
     if (strcmp (current_totp, user_totp) != 0) {
         token_status = TOTP_NOT_VALID;
     } else {
@@ -140,6 +163,9 @@ hotp_verify (const char *K, long C, int N, const char *user_hotp)
 {
     int token_status;
     char *current_hotp = get_hotp (K, C, N);
+    if (current_hotp == NULL) {
+        return GCRYPT_VERSION_MISMATCH;
+    }
     if (strcmp (current_hotp, user_hotp) != 0) {
         token_status = HOTP_NOT_VALID;
     } else {

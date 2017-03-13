@@ -1,5 +1,6 @@
 #pragma once
 
+#define GCRYPT_VERSION_MISMATCH -1
 #define TOTP_NOT_VALID 0
 #define TOTP_VALID 1
 #define HOTP_NOT_VALID TOTP_NOT_VALID
