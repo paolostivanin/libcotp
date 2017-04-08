@@ -4,14 +4,14 @@ project(cotp)
 # set up versioning.
 set(BUILD_MAJOR "1")
 set(BUILD_MINOR "0")
-set(BUILD_VERSION "5")
+set(BUILD_VERSION "6")
 set(BUILD_VERSION ${BUILD_MAJOR}.${BUILD_MINOR}.${BUILD_VERSION})
 
 set(CMAKE_C_STANDARD 11)
 
 set(COTP_HEADERS src/cotp.h)
-set(SOURCE_FILES src/base32.c src/otp.c)
-set(PROJECT_LIBS -lgcrypt)
+set(SOURCE_FILES src/otp.c)
+set(PROJECT_LIBS -lgcrypt -lbaseencode)
 
 set(CMAKE_C_FLAGS "-Wall -Werror -fPIC")
 
