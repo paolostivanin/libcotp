@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 3.5)
 project(cotp)
 
+enable_testing()
+add_subdirectory(tests)
+
 # set up versioning.
 set(BUILD_MAJOR "1")
 set(BUILD_MINOR "0")

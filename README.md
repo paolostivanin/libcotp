@@ -1,20 +1,21 @@
 # libcotp
 C library that generates TOTP and HOTP according to [RFC-6238](https://tools.ietf.org/html/rfc6238)
 
-Build and Install
-------------
+##Requirements
+- [libbaseencode](https://github.com/paolostivanin/libbaseencode)
+- GCC/Clang and CMake to build the library
+
+##Build and Install
 ```
 $ git clone https://github.com/paolostivanin/libcotp.git
 $ cd libcotp
 $ mkdir build && cd $_
-$ cmake -DCMAKE_INSTALL_PREFIX:PATH=/usr ../
+$ cmake -DCMAKE_INSTALL_PREFIX:PATH=/usr ../   # add -DBUILD_TESTING=ON if you want to compile also the tests
 $ make
 # make install
 ```
 
-How To Use It
--------------
-
+##How To Use It
 ```
 char *totp = get_totp ('secretkey', digits, algo);
 free (totp);
@@ -32,4 +33,4 @@ where:
 - `counter` is a value decided with the server
 - `algo` is either `SHA1`, `SHA256` or `SHA512`
 
-<br><br>Please note that you **must free** the memory allocated for the totp/hotp value(s) once you're done with it(them)!
+Please note that the value returned by `get_totp` and `get_hotp` **must be freed** once not needed any more.
