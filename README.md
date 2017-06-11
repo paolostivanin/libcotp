@@ -1,4 +1,9 @@
 # libcotp
+<a href="https://scan.coverity.com/projects/paolostivanin-libcotp">
+  <img alt="Coverity Scan Build Status"
+       src="https://scan.coverity.com/projects/12748/badge.svg"/>
+</a>
+
 C library that generates TOTP and HOTP according to [RFC-6238](https://tools.ietf.org/html/rfc6238)
 
 ##Requirements
