@@ -6,11 +6,11 @@
 
 C library that generates TOTP and HOTP according to [RFC-6238](https://tools.ietf.org/html/rfc6238)
 
-##Requirements
+## Requirements
 - [libbaseencode](https://github.com/paolostivanin/libbaseencode)
 - GCC/Clang and CMake to build the library
 
-##Build and Install
+## Build and Install
 ```
 $ git clone https://github.com/paolostivanin/libcotp.git
 $ cd libcotp
@@ -20,7 +20,7 @@ $ make
 # make install
 ```
 
-##How To Use It
+## How To Use It
 ```
 char *totp = get_totp ('secretkey', digits, algo);
 free (totp);
