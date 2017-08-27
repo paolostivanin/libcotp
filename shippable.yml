@@ -1,17 +1,17 @@
 language: c
 
 branches:
-    only:
-        - master
+  only:
+    - master
 
 compiler:
-    - gcc
-    - clang
+  - gcc
+  - clang
 
-install:
-    - sudo apt install cmake
-
-script:
-    mkdir build && cd $_
-    cmake ../
-    make -j2
+build:
+  ci:
+    - sudo apt update
+    - sudo apt install cmake libgcrypt20-dev
+    - mkdir build && cd $_
+    - cmake ../
+    - make -j2
