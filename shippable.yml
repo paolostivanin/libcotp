@@ -12,6 +12,12 @@ build:
   ci:
     - sudo apt update
     - sudo apt install cmake libgcrypt20-dev
+    - git clone https://github.com/paolostivanin/libbaseencode.git
+    - cd libbaseencode && mkdir build && cd $_
+    - cmake ..
+    - make -j2
+    - sudo make install
+    - cd ../..
     - mkdir build && cd $_
     - cmake ../
     - make -j2
