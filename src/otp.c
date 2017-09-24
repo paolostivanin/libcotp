@@ -3,6 +3,7 @@
 #include <string.h>
 #include <gcrypt.h>
 #include <baseencode.h>
+#include <ctype.h>
 #include "cotp.h"
 
 
@@ -25,6 +26,26 @@ check_gcrypt()
         gcry_control(GCRYCTL_INITIALIZATION_FINISHED, 0);
     }
     return 0;
+}
+
+
+static char *
+normalize_secret (const char *K)
+{
+    char *nK = calloc (1, strlen (K) + 1);
+
+    int i = 0, j = 0;
+    while (K[i] != '\0') {
+        if (K[i] != ' ') {
+            if (K[i] >= 'a' && K[i] <= 'z') {
+                nK[j++] = (char) (K[i] - 32);
+            } else {
+                nK[j++] = K[i];
+            }
+        }
+        i++;
+    }
+    return nK;
 }
 
 
@@ -61,7 +82,9 @@ compute_hmac(const char *K, long C, int algo)
 {
     size_t secret_len = (size_t) ((strlen(K) + 1.6 - 1) / 1.6);
 
-    unsigned char *secret = base32_decode(K, strlen(K));
+    char *normalized_K = normalize_secret (K);
+    unsigned char *secret = base32_decode(normalized_K, strlen(normalized_K));
+    free (normalized_K);
 
     unsigned char C_reverse_byte_order[8];
     int j, i;

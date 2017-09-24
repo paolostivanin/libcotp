@@ -74,3 +74,13 @@ Test(hotp_rfc, test_6_digits) {
 
     free(K_base32);
 }
+
+Test(totp_generic, test_secret_with_space) {
+    const char *K = "hxdm vjec jjws rb3h wizr 4ifu gftm xboz";
+    const char *expected_totp = "488431";
+
+    char *totp = get_totp_at (K, 1506268800, 6, SHA1);
+    cr_expect_str_eq (totp, expected_totp, "Expected %s to be equal to %s\n", totp, expected_totp);
+
+    free (totp);
+}

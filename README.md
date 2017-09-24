@@ -35,7 +35,8 @@ int is_valid = hotp_verify ('secretkey', counter, digits, 'hotp', algo); // retu
 ```
 
 where:
-- `secret_key` is the **base32 encoded** secret
+- `secret_key` is the **base32 encoded** secret. Usually, a website gives you the secret already base32 encoded, so you should pay attention to not encode the secret again.
+The format of the secret can either be `hxdm vjec jjws` or `HXDMVJECJJWS`. In the first case, the library will normalize the secret to second format before computing the OTP.
 - `digits` is either `6` or `8`
 - `counter` is a value decided with the server
 - `algo` is either `SHA1`, `SHA256` or `SHA512`
