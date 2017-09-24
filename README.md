@@ -3,6 +3,7 @@
   <img alt="Coverity Scan Build Status"
        src="https://scan.coverity.com/projects/12748/badge.svg"/>
 </a>
+[![Run Status](https://api.shippable.com/projects/58e3d5759401b40600a7c026/badge?branch=master)](https://app.shippable.com/github/paolostivanin/libcotp)
 
 C library that generates TOTP and HOTP according to [RFC-6238](https://tools.ietf.org/html/rfc6238)
 
@@ -22,10 +23,10 @@ $ make
 
 ## How To Use It
 ```
-char *totp = get_totp ('secretkey', digits, algo);
+char *totp = get_totp ("base32_encoded_secret", digits, algo);
 free (totp);
 
-char *hotp = get_hotp ('secretkey', counter, digits, algo);
+char *hotp = get_hotp ("base32_encoded_secret", counter, digits, algo);
 free (hotp);
 
 int is_valid = totp_verify ('secretkey', digits, 'totp', algo); // returns either TOTP_VALID or TOTP_NOT_VALID
@@ -34,6 +35,7 @@ int is_valid = hotp_verify ('secretkey', counter, digits, 'hotp', algo); // retu
 ```
 
 where:
+- `secret_key` is the **base32 encoded** secret
 - `digits` is either `6` or `8`
 - `counter` is a value decided with the server
 - `algo` is either `SHA1`, `SHA256` or `SHA512`
