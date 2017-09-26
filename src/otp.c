@@ -3,7 +3,6 @@
 #include <string.h>
 #include <gcrypt.h>
 #include <baseencode.h>
-#include <ctype.h>
 #include "cotp.h"
 
 
@@ -50,7 +49,7 @@ normalize_secret (const char *K)
 
 
 static int
-truncate(unsigned char *hmac, int N, int algo)
+truncate(unsigned const char *hmac, int N, int algo)
 {
     // take the lower four bits of the last byte
     int offset = 0;
@@ -85,6 +84,9 @@ compute_hmac(const char *K, long C, int algo)
     char *normalized_K = normalize_secret (K);
     unsigned char *secret = base32_decode(normalized_K, strlen(normalized_K));
     free (normalized_K);
+    if (secret == NULL) {
+        return NULL;
+    }
 
     unsigned char C_reverse_byte_order[8];
     int j, i;
@@ -139,23 +141,31 @@ check_algo(int algo)
     if (algo != SHA1 && algo != SHA256 && algo != SHA512) {
         return INVALID_ALGO;
     } else {
-        return VALID_ALGO;
+        return VALID;
     }
 }
 
 
 char *
-get_hotp(const char *K, long C, int N, int algo)
+get_hotp(const char *K, long C, int N, int algo, cotp_error_t *err_code)
 {
-    if (check_gcrypt() == -1)
+    if (check_gcrypt() == -1) {
+        *err_code = GCRYPT_VERSION_MISMATCH;
         return NULL;
+    }
 
-    if (check_algo(algo) == INVALID_ALGO)
+    if (check_algo(algo) == INVALID_ALGO) {
+        *err_code = INVALID_ALGO;
         return NULL;
+    }
 
     N = check_otp_len(N);
 
     unsigned char *hmac = compute_hmac(K, C, algo);
+    if (hmac == NULL) {
+        *err_code = INVALID_B32_INPUT;
+        return NULL;
+    }
     int tk = truncate(hmac, N, algo);
     char *token = finalize(N, tk);
     return token;
@@ -163,29 +173,44 @@ get_hotp(const char *K, long C, int N, int algo)
 
 
 char *
-get_totp(const char *K, int N, int algo)
+get_totp(const char *K, int N, int algo, cotp_error_t *err_code)
 {
-    if (check_gcrypt() == -1)
+    if (check_gcrypt() == -1) {
+        *err_code = GCRYPT_VERSION_MISMATCH;
         return NULL;
+    }
 
     N = check_otp_len(N);
 
     long TC = ((long) time(NULL)) / 30;
-    char *token = get_hotp(K, TC, N, algo);
+    cotp_error_t err;
+    char *token = get_hotp(K, TC, N, algo, &err);
+    if (token == NULL) {
+        *err_code = err;
+        return NULL;
+    }
     return token;
 }
 
 
 char *
-get_totp_at(const char *K, long T, int N, int algo)
+get_totp_at(const char *K, long T, int N, int algo, cotp_error_t *err_code)
 {
-    if (check_gcrypt() == -1)
+    if (check_gcrypt() == -1) {
+        *err_code = GCRYPT_VERSION_MISMATCH;
         return NULL;
+    }
 
     N = check_otp_len(N);
 
     long TC = T / 30;
-    char *token = get_hotp(K, TC, N, algo);
+    cotp_error_t err;
+
+    char *token = get_hotp(K, TC, N, algo, &err);
+    if (token == NULL) {
+        *err_code = err;
+        return NULL;
+    }
     return token;
 }
 
@@ -193,15 +218,16 @@ get_totp_at(const char *K, long T, int N, int algo)
 int
 totp_verify(const char *K, int N, const char *user_totp, int algo)
 {
-    int token_status;
-    char *current_totp = get_totp(K, N, algo);
+    cotp_error_t err;
+    char *current_totp = get_totp(K, N, algo, &err);
     if (current_totp == NULL) {
-        return GCRYPT_VERSION_MISMATCH;
+        return err;
     }
+    int token_status;
     if (strcmp(current_totp, user_totp) != 0) {
-        token_status = TOTP_NOT_VALID;
+        token_status = INVALID_OTP;
     } else {
-        token_status = TOTP_VALID;
+        token_status = VALID;
     }
     free(current_totp);
     return token_status;
@@ -211,16 +237,20 @@ totp_verify(const char *K, int N, const char *user_totp, int algo)
 int
 hotp_verify(const char *K, long C, int N, const char *user_hotp, int algo)
 {
-    int token_status;
-    char *current_hotp = get_hotp(K, C, N, algo);
+    cotp_error_t err;
+    char *current_hotp = get_hotp(K, C, N, algo, &err);
     if (current_hotp == NULL) {
-        return GCRYPT_VERSION_MISMATCH;
+        return err;
     }
+    int token_status;
     if (strcmp(current_hotp, user_hotp) != 0) {
-        token_status = HOTP_NOT_VALID;
+        token_status = INVALID_OTP;
     } else {
-        token_status = HOTP_VALID;
+        token_status = VALID;
     }
     free(current_hotp);
     return token_status;
 }
+
+// TODO fix doc
+// TODO add string like strerror(errno)
