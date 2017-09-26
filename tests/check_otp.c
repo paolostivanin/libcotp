@@ -9,15 +9,15 @@ Test(totp_rfc6238, test_8_digits_sha1) {
     const int digits = 8;
     const int64_t counter[] = {59, 1111111109, 1111111111, 1234567890, 2000000000, 20000000000};
     const char *expected_totp[] = {"94287082", "07081804", "14050471", "89005924", "69279037", "65353130"};
+    cotp_error_t err;
 
     char *K_base32 = base32_encode(K, strlen(K)+1);
 
     for (int i = 0; i < 6; i++) {
-        char *totp = get_totp_at(K_base32, counter[i], digits, SHA1);
+        char *totp = get_totp_at(K_base32, counter[i], digits, SHA1, &err);
         cr_expect_str_eq(totp, expected_totp[i], "Expected %s to be equal to %s\n", totp, expected_totp[i]);
         free(totp);
     }
-
     free(K_base32);
 }
 
@@ -27,15 +27,15 @@ Test(totp_rfc6238, test_8_digits_sha256) {
     const int digits = 8;
     const int64_t counter[] = {59, 1111111109, 1111111111, 1234567890, 2000000000, 20000000000};
     const char *expected_totp[] = {"46119246", "68084774", "67062674", "91819424", "90698825", "77737706"};
+    cotp_error_t err;
 
     char *K_base32 = base32_encode(K, strlen(K)+1);
 
     for (int i = 0; i < 6; i++) {
-        char *totp = get_totp_at(K_base32, counter[i], digits, SHA256);
+        char *totp = get_totp_at(K_base32, counter[i], digits, SHA256, &err);
         cr_expect_str_eq(totp, expected_totp[i], "Expected %s to be equal to %s\n", totp, expected_totp[i]);
         free(totp);
     }
-
     free(K_base32);
 }
 
@@ -45,15 +45,15 @@ Test(totp_rfc6238, test_8_digits_sha512) {
     const int digits = 8;
     const int64_t counter[] = {59, 1111111109, 1111111111, 1234567890, 2000000000, 20000000000};
     const char *expected_totp[] = {"90693936", "25091201", "99943326", "93441116", "38618901", "47863826"};
+    cotp_error_t err;
 
     char *K_base32 = base32_encode(K, strlen(K)+1);
 
     for (int i = 0; i < 6; i++) {
-        char *totp = get_totp_at(K_base32, counter[i], digits, SHA512);
+        char *totp = get_totp_at(K_base32, counter[i], digits, SHA512, &err);
         cr_expect_str_eq(totp, expected_totp[i], "Expected %s to be equal to %s\n", totp, expected_totp[i]);
         free(totp);
     }
-
     free(K_base32);
 }
 
@@ -63,24 +63,47 @@ Test(hotp_rfc, test_6_digits) {
     const int digits = 6;
     const int counter[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
     const char *expected_hotp[] = {"755224", "287082", "359152", "969429", "338314", "254676", "287922", "162583", "399871", "520489"};
+    cotp_error_t err;
 
     char *K_base32 = base32_encode(K, strlen(K)+1);
 
     for (int i = 0; i < 10; i++) {
-        char *hotp = get_hotp(K_base32, counter[i], digits, SHA1);
+        char *hotp = get_hotp(K_base32, counter[i], digits, SHA1, &err);
         cr_expect_str_eq(hotp, expected_hotp[i], "Expected %s to be equal to %s\n", hotp, expected_hotp[i]);
         free(hotp);
     }
-
     free(K_base32);
 }
 
 Test(totp_generic, test_secret_with_space) {
     const char *K = "hxdm vjec jjws rb3h wizr 4ifu gftm xboz";
     const char *expected_totp = "488431";
+    cotp_error_t err;
 
-    char *totp = get_totp_at (K, 1506268800, 6, SHA1);
+    char *totp = get_totp_at (K, 1506268800, 6, SHA1, &err);
     cr_expect_str_eq (totp, expected_totp, "Expected %s to be equal to %s\n", totp, expected_totp);
 
     free (totp);
+}
+
+Test(totp_generic, test_fail_invalid_b32_input) {
+    const char *K = "This input is not valid!";
+    cotp_error_t err;
+
+    char *totp = get_totp (K, 6, SHA1, &err);
+
+    cr_expect_null (totp, "Expected totp to be null");
+    cr_expect_eq (err, INVALID_B32_INPUT, "Expected %d to be equal to %d\n", err, INVALID_B32_INPUT);
+    cr_expect_str_eq (errno_to_str[err].message, "The given input is not base32 encoded");
+}
+
+Test(totp_generic, test_fail_invalid_algo) {
+    const char *K = "base32secret";
+    cotp_error_t err;
+
+    char *totp = get_totp (K, 6, GCRY_MD_MD5, &err);
+
+    cr_expect_null (totp, "Expected totp to be null");
+    cr_expect_eq (err, INVALID_ALGO, "Expected %d to be equal to %d\n", err, INVALID_ALGO);
+    cr_expect_str_eq (errno_to_str[err].message, "The specified algorithm is not supported");
 }

@@ -27,15 +27,17 @@ $ make
 
 ## How To Use It
 ```
-char *totp = get_totp ("base32_encoded_secret", digits, algo);
+char *totp = get_totp (char *base32_encoded_secret, int digits, int algo, cotp_error_t *err);
 free (totp);
 
-char *hotp = get_hotp ("base32_encoded_secret", counter, digits, algo);
+char *hotp = get_hotp (char *base32_encoded_secret, long counter, int digits, int algo, cotp_error_t *err);
 free (hotp);
 
-int is_valid = totp_verify ('secretkey', digits, 'totp', algo); // returns either TOTP_VALID or TOTP_NOT_VALID
+char *get_totp_at (char *base32_encoded_secret, long target_date, int digits, int algo, cotp_error_t *err)
 
-int is_valid = hotp_verify ('secretkey', counter, digits, 'hotp', algo); // returns either HOTP_VALID or HOTP_NOT_VALID
+int is_valid = totp_verify (char *base32_encoded_secret, int digits, char *totp, int algo, cotp_error_t *err);
+
+int is_valid = hotp_verify (char *base32_encoded_secret, long counter, digits, char *hotp, int algo, cotp_error_t *err);
 ```
 
 where:
@@ -43,6 +45,15 @@ where:
 The format of the secret can either be `hxdm vjec jjws` or `HXDMVJECJJWS`. In the first case, the library will normalize the secret to second format before computing the OTP.
 - `digits` is either `6` or `8`
 - `counter` is a value decided with the server
+- `target_date` is the target date specified as the unix epoch format in seconds
 - `algo` is either `SHA1`, `SHA256` or `SHA512`
 
-Please note that the value returned by `get_totp` and `get_hotp` **must be freed** once not needed any more.
+## Errors
+`get_totp`, `get_hotp` and `get_totp_at` return `NULL` if an error occurs and `err` is set accordingly. The following errors are currently supported:
+- `GCRYPT_VERSION_MISMATCH`, set if the installed Gcrypt library is too old
+- `INVALID_B32_INPUT`, set if the given input is not valid base32 text
+- `INVALID_ALGO`, set if the given algo is not supported by the library
+`totp_verify` and `hotp_verify` can return, in addition to one of the previous code, also the error `INVALID_OTP` if the given OTP doesn't match the computed one.
+It's also possible to print the error message by doing the following: `printf ("%s\n", errno_to_str[err].message)`
+
+In case of success, the value returned by `get_totp`, `get_hotp` and `get_totp_at` **must be freed** once no longer needed.
