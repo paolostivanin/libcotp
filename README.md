@@ -53,6 +53,7 @@ The format of the secret can either be `hxdm vjec jjws` or `HXDMVJECJJWS`. In th
 - `GCRYPT_VERSION_MISMATCH`, set if the installed Gcrypt library is too old
 - `INVALID_B32_INPUT`, set if the given input is not valid base32 text
 - `INVALID_ALGO`, set if the given algo is not supported by the library
+
 `totp_verify` and `hotp_verify` can return, in addition to one of the previous code, also the error `INVALID_OTP` if the given OTP doesn't match the computed one.
 It's also possible to print the error message by doing the following: `printf ("%s\n", errno_to_str[err].message)`
 
