@@ -10,14 +10,19 @@ compiler:
 
 build:
   ci:
+    - sudo add-apt-repository ppa:snaipewastaken/ppa
     - sudo apt update
-    - sudo apt install cmake libgcrypt20-dev
+    - sudo apt install cmake libgcrypt20-dev criterion-dev
     - git clone https://github.com/paolostivanin/libbaseencode.git
     - cd libbaseencode && mkdir build && cd $_
     - cmake ..
-    - make -j2
+    - make
     - sudo make install
     - cd ../..
     - mkdir build && cd $_
-    - cmake ../
-    - make -j2
+    - cmake ..
+    - make
+    - sudo make install
+    - cmake .. -DBUILD_TESTING=ON
+    - make
+    - make test
