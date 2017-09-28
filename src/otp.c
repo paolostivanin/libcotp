@@ -251,6 +251,3 @@ hotp_verify(const char *K, long C, int N, const char *user_hotp, int algo)
     free(current_hotp);
     return token_status;
 }
-
-// TODO fix doc
-// TODO add string like strerror(errno)
