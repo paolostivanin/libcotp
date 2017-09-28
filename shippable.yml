@@ -10,6 +10,7 @@ compiler:
 
 build:
   ci:
+    - mkdir -pv "shippable/testresults"
     - sudo add-apt-repository ppa:snaipewastaken/ppa
     - sudo apt update
     - sudo apt install cmake libgcrypt20-dev criterion-dev
@@ -25,4 +26,5 @@ build:
     - sudo make install
     - cmake .. -DBUILD_TESTING=ON
     - make
-    - make test
+    - ./tests/test_cotp --xml=test.xml
+    - mv -v test.xml ../shippable/testresults
