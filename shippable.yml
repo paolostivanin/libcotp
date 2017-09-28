@@ -15,12 +15,12 @@ build:
     - sudo apt install cmake libgcrypt20-dev criterion-dev
     - git clone https://github.com/paolostivanin/libbaseencode.git
     - cd libbaseencode && mkdir build && cd $_
-    - cmake ..
+    - cmake .. -DCMAKE_INSTALL_PREFIX=/usr
     - make
     - sudo make install
     - cd ../..
     - mkdir build && cd $_
-    - cmake ..
+    - cmake .. -DCMAKE_INSTALL_PREFIX=/usr
     - make
     - sudo make install
     - cmake .. -DBUILD_TESTING=ON
