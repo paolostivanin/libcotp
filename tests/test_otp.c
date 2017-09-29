@@ -11,7 +11,8 @@ Test(totp_rfc6238, test_8_digits_sha1) {
     const char *expected_totp[] = {"94287082", "07081804", "14050471", "89005924", "69279037", "65353130"};
     cotp_error_t err;
 
-    char *K_base32 = base32_encode(K, strlen(K)+1);
+    baseencode_error_t base_err;
+    char *K_base32 = base32_encode(K, strlen(K)+1, &base_err);
 
     for (int i = 0; i < 6; i++) {
         char *totp = get_totp_at(K_base32, counter[i], digits, SHA1, &err);
@@ -29,7 +30,8 @@ Test(totp_rfc6238, test_8_digits_sha256) {
     const char *expected_totp[] = {"46119246", "68084774", "67062674", "91819424", "90698825", "77737706"};
     cotp_error_t err;
 
-    char *K_base32 = base32_encode(K, strlen(K)+1);
+    baseencode_error_t base_err;
+    char *K_base32 = base32_encode(K, strlen(K)+1, &base_err);
 
     for (int i = 0; i < 6; i++) {
         char *totp = get_totp_at(K_base32, counter[i], digits, SHA256, &err);
@@ -47,7 +49,8 @@ Test(totp_rfc6238, test_8_digits_sha512) {
     const char *expected_totp[] = {"90693936", "25091201", "99943326", "93441116", "38618901", "47863826"};
     cotp_error_t err;
 
-    char *K_base32 = base32_encode(K, strlen(K)+1);
+    baseencode_error_t base_err;
+    char *K_base32 = base32_encode(K, strlen(K)+1, &base_err);
 
     for (int i = 0; i < 6; i++) {
         char *totp = get_totp_at(K_base32, counter[i], digits, SHA512, &err);
@@ -65,7 +68,8 @@ Test(hotp_rfc, test_6_digits) {
     const char *expected_hotp[] = {"755224", "287082", "359152", "969429", "338314", "254676", "287922", "162583", "399871", "520489"};
     cotp_error_t err;
 
-    char *K_base32 = base32_encode(K, strlen(K)+1);
+    baseencode_error_t base_err;
+    char *K_base32 = base32_encode(K, strlen(K)+1, &base_err);
 
     for (int i = 0; i < 10; i++) {
         char *hotp = get_hotp(K_base32, counter[i], digits, SHA1, &err);
@@ -94,7 +98,6 @@ Test(totp_generic, test_fail_invalid_b32_input) {
 
     cr_expect_null (totp, "Expected totp to be null");
     cr_expect_eq (err, INVALID_B32_INPUT, "Expected %d to be equal to %d\n", err, INVALID_B32_INPUT);
-    cr_expect_str_eq (errno_to_str[err].message, "The given input is not base32 encoded");
 }
 
 Test(totp_generic, test_fail_invalid_algo) {
@@ -105,5 +108,4 @@ Test(totp_generic, test_fail_invalid_algo) {
 
     cr_expect_null (totp, "Expected totp to be null");
     cr_expect_eq (err, INVALID_ALGO, "Expected %d to be equal to %d\n", err, INVALID_ALGO);
-    cr_expect_str_eq (errno_to_str[err].message, "The specified algorithm is not supported");
 }

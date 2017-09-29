@@ -1,6 +1,6 @@
 
 IF(BUILD_TESTING)
-    add_executable (test_cotp check_otp.c)
+    add_executable (test_cotp test_otp.c)
 
     target_link_libraries (test_cotp -lcotp -lcriterion -lbaseencode -lgcrypt)
 
