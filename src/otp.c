@@ -79,10 +79,11 @@ truncate(unsigned const char *hmac, int N, int algo)
 static unsigned char *
 compute_hmac(const char *K, long C, int algo)
 {
+    baseencode_error_t err;
     size_t secret_len = (size_t) ((strlen(K) + 1.6 - 1) / 1.6);
 
     char *normalized_K = normalize_secret (K);
-    unsigned char *secret = base32_decode(normalized_K, strlen(normalized_K));
+    unsigned char *secret = base32_decode(normalized_K, strlen(normalized_K), &err);
     free (normalized_K);
     if (secret == NULL) {
         return NULL;
