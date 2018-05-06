@@ -14,8 +14,30 @@ typedef enum _cotp_errno {
 } cotp_error_t;
 
 
-char *get_hotp (const char *base32_encoded_secret, long counter, int digits, int sha_algo, cotp_error_t *err_code);
-char *get_totp (const char *base32_encoded_secret, int digits, int sha_algo, cotp_error_t *err_code);
-char *get_totp_at (const char *base32_encoded_secret, long time, int digits, int sha_algo, cotp_error_t *err_code);
-int totp_verify (const char *base32_encoded_secret, int digits, const char *user_totp, int sha_algo);
-int hotp_verify (const char *base32_encoded_secret, long counter, int digits, const char *user_hotp, int sha_algo);
+char   *get_hotp    (const char     *base32_encoded_secret,
+                     long            counter,
+                     int             digits,
+                     int             sha_algo,
+                     cotp_error_t   *err_code);
+
+char   *get_totp    (const char     *base32_encoded_secret,
+                     int             digits,
+                     int             sha_algo,
+                     cotp_error_t   *err_code);
+
+char   *get_totp_at (const char     *base32_encoded_secret,
+                     long            time,
+                     int             digits,
+                     int             sha_algo,
+                     cotp_error_t   *err_code);
+
+int     totp_verify (const char     *base32_encoded_secret,
+                     int             digits,
+                     const char     *user_totp,
+                     int             sha_algo);
+
+int     hotp_verify (const char     *base32_encoded_secret,
+                     long            counter,
+                     int             digits,
+                     const char     *user_hotp,
+                     int             sha_algo);
