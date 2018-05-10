@@ -8,14 +8,45 @@
 typedef enum _cotp_errno {
     VALID = 0,
     GCRYPT_VERSION_MISMATCH = 1,
-    INVALID_B32_INPUT = 2,
-    INVALID_ALGO = 3,
-    INVALID_OTP = 4
+    INVALID_B32_INPUT       = 2,
+    INVALID_ALGO            = 3,
+    INVALID_OTP             = 4,
+    INVALID_DIGITS          = 5
 } cotp_error_t;
 
 
-char *get_hotp (const char *base32_encoded_secret, long counter, int digits, int sha_algo, cotp_error_t *err_code);
-char *get_totp (const char *base32_encoded_secret, int digits, int sha_algo, cotp_error_t *err_code);
-char *get_totp_at (const char *base32_encoded_secret, long time, int digits, int sha_algo, cotp_error_t *err_code);
-int totp_verify (const char *base32_encoded_secret, int digits, const char *user_totp, int sha_algo);
-int hotp_verify (const char *base32_encoded_secret, long counter, int digits, const char *user_hotp, int sha_algo);
+char   *get_hotp            (const char     *base32_encoded_secret,
+                             long            counter,
+                             int             digits,
+                             int             sha_algo,
+                             cotp_error_t   *err_code);
+
+char   *get_totp            (const char     *base32_encoded_secret,
+                             int             digits,
+                             int             sha_algo,
+                             cotp_error_t   *err_code);
+
+char   *get_steam_totp      (const char     *base32_encoded_secret,
+                             cotp_error_t   *err_code);
+
+
+char   *get_totp_at         (const char     *base32_encoded_secret,
+                             long            time,
+                             int             digits,
+                             int             sha_algo,
+                             cotp_error_t   *err_code);
+
+char   *get_steam_totp_at   (const char     *base32_encoded_secret,
+                             long            timestamp,
+                             cotp_error_t   *err_code);
+
+int     totp_verify         (const char     *base32_encoded_secret,
+                             int             digits,
+                             const char     *user_totp,
+                             int             sha_algo);
+
+int     hotp_verify         (const char     *base32_encoded_secret,
+                             long            counter,
+                             int             digits,
+                             const char     *user_hotp,
+                             int             sha_algo);

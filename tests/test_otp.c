@@ -79,6 +79,20 @@ Test(hotp_rfc, test_6_digits) {
     free(K_base32);
 }
 
+
+Test(hotp_rfc, test_wrong_digits) {
+    const char *K = "this is a secret";
+    cotp_error_t err;
+
+    char *totp = get_totp (K, 7, SHA1, &err);
+
+    cr_expect_null (totp, "Expected totp to be null");
+    cr_expect_eq (err, INVALID_DIGITS, "Expected %d to be equal to %d\n", err, INVALID_DIGITS);
+
+    free (totp);
+}
+
+
 Test(totp_generic, test_secret_with_space) {
     const char *K = "hxdm vjec jjws rb3h wizr 4ifu gftm xboz";
     const char *expected_totp = "488431";
@@ -90,6 +104,7 @@ Test(totp_generic, test_secret_with_space) {
     free (totp);
 }
 
+
 Test(totp_generic, test_fail_invalid_b32_input) {
     const char *K = "This input is not valid!";
     cotp_error_t err;
@@ -100,6 +115,7 @@ Test(totp_generic, test_fail_invalid_b32_input) {
     cr_expect_eq (err, INVALID_B32_INPUT, "Expected %d to be equal to %d\n", err, INVALID_B32_INPUT);
 }
 
+
 Test(totp_generic, test_fail_invalid_algo) {
     const char *K = "base32secret";
     cotp_error_t err;
@@ -108,4 +124,27 @@ Test(totp_generic, test_fail_invalid_algo) {
 
     cr_expect_null (totp, "Expected totp to be null");
     cr_expect_eq (err, INVALID_ALGO, "Expected %d to be equal to %d\n", err, INVALID_ALGO);
+}
+
+
+Test(totp_generic, test_steam_totp) {
+    const char *secret = "ON2XAZLSMR2XAZLSONSWG4TFOQ======";
+    const char *expected_totp = "YRGQJ";
+    long timestamp = 3000030;
+    cotp_error_t err;
+
+    char *totp = get_steam_totp_at (secret, timestamp, &err);
+    cr_expect_str_eq (totp, expected_totp, "Expected %s to be equal to %s\n", totp, expected_totp);
+
+    free (totp);
+}
+
+
+Test(totp_generic, test_steam_totp_input_b64) {
+    const char *b64_encoded_secret = "VGhpcyBpbnB1dCBpcyBub3QgdmFsaWQhCg==";
+
+    cotp_error_t err;
+    char *totp = get_steam_totp (b64_encoded_secret, &err);
+    cr_expect_null (totp, "Expected totp to be null");
+    cr_expect_eq (err, INVALID_B32_INPUT, "Expected %d to be equal to %d\n", err, INVALID_B32_INPUT);
 }

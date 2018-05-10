@@ -3,14 +3,13 @@ project(cotp)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
+find_package(PkgConfig REQUIRED)
 find_package(Gcrypt 1.6.0 REQUIRED)
-find_package(Baseencode 1.0.4 REQUIRED)
+pkg_check_modules(BASEENCODE REQUIRED baseencode>=1.0.5)
 
-include_directories(${GCRYPT_INCLUDE_DIR}
-        ${BASEENCODE_INCLUDE_DIR})
+include_directories(${GCRYPT_INCLUDE_DIR} ${BASEENCODE_INCLUDE_DIR})
 
-link_directories(${GCRYPT_LIBRARY_DIRS}
-        ${BASEENCODE_LIBRARY_DIRS})
+link_directories(${GCRYPT_LIBRARY_DIRS} ${BASEENCODE_LIBRARY_DIR})
 
 enable_testing()
 add_subdirectory(tests)
@@ -18,7 +17,7 @@ add_subdirectory(tests)
 # set up versioning.
 set(BUILD_MAJOR "1")
 set(BUILD_MINOR "0")
-set(BUILD_VERSION "11")
+set(BUILD_VERSION "12")
 set(BUILD_VERSION ${BUILD_MAJOR}.${BUILD_MINOR}.${BUILD_VERSION})
 
 set(CMAKE_C_STANDARD 11)
@@ -49,3 +48,7 @@ install(
   FILES ${COTP_HEADERS}
   DESTINATION include
 )
+
+configure_file("cotp.pc.in" "cotp.pc" @ONLY)
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/cotp.pc" DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/pkgconfig/)
+
