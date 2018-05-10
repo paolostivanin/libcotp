@@ -3,14 +3,13 @@ project(cotp)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
+find_package(PkgConfig REQUIRED)
 find_package(Gcrypt 1.6.0 REQUIRED)
-find_package(Baseencode 1.0.4 REQUIRED)
+pkg_check_modules(BASEENCODE REQUIRED baseencode>=1.0.5)
 
-include_directories(${GCRYPT_INCLUDE_DIR}
-        ${BASEENCODE_INCLUDE_DIR})
+include_directories(${GCRYPT_INCLUDE_DIR} ${BASEENCODE_INCLUDE_DIR})
 
-link_directories(${GCRYPT_LIBRARY_DIRS}
-        ${BASEENCODE_LIBRARY_DIRS})
+link_directories(${GCRYPT_LIBRARY_DIRS} ${BASEENCODE_LIBRARY_DIR})
 
 enable_testing()
 add_subdirectory(tests)

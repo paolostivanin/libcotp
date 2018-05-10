@@ -48,6 +48,28 @@ normalize_secret (const char *K)
 }
 
 
+static char *
+get_steam_code(unsigned const char *hmac)
+{
+    int offset = (hmac[SHA1_DIGEST_SIZE-1] & 0x0f);
+
+    // Starting from the offset, take the successive 4 bytes while stripping the topmost bit to prevent it being handled as a signed integer
+    int bin_code = ((hmac[offset] & 0x7f) << 24) | ((hmac[offset + 1] & 0xff) << 16) | ((hmac[offset + 2] & 0xff) << 8) | ((hmac[offset + 3] & 0xff));
+
+    const char steam_alphabet[] = "23456789BCDFGHJKMNPQRTVWXY";
+
+    char code[6];
+    for (int i = 0; i < 5; i++) {
+        int mod = bin_code % strlen(steam_alphabet);
+        bin_code = bin_code / strlen(steam_alphabet);
+        code[i] = steam_alphabet[mod];
+    }
+    code[5] = '\0';
+
+    return strdup(code);
+}
+
+
 static int
 truncate(unsigned const char *hmac, int N, int algo)
 {
@@ -110,15 +132,17 @@ compute_hmac(const char *K, long C, int algo)
 static char *
 finalize(int N, int tk)
 {
-    char *token = malloc((size_t) N + 1);
+    char *token = malloc((size_t)N + 1);
     if (token == NULL) {
-        printf("[E] Error during memory allocation\n");
+        fprintf (stderr, "Error during memory allocation\n");
         return NULL;
     } else {
-        if (N == 6)
-            snprintf(token, 7, "%.6d", tk);
-        else
-            snprintf(token, 9, "%.8d", tk);
+        char *fmt = calloc(1, 5);
+        memcpy (fmt, "%.", 2);
+        snprintf (fmt+2, 2, "%d", N);
+        memcpy (fmt+3, "d", 2);
+        snprintf (token, N+1, fmt, tk);
+        free (fmt);
     }
     return token;
 }
@@ -128,11 +152,9 @@ static int
 check_otp_len(int N)
 {
     if ((N != 6) && (N != 8)) {
-        fprintf(stderr, "Only 6 or 8 is allowed as number of digits. Falling back to 6.\n");
-        return 6;
-    } else {
-        return N;
+        return INVALID_DIGITS;
     }
+    return VALID;
 }
 
 
@@ -160,7 +182,10 @@ get_hotp(const char *K, long C, int N, int algo, cotp_error_t *err_code)
         return NULL;
     }
 
-    N = check_otp_len(N);
+    if (check_otp_len(N) == INVALID_DIGITS) {
+        *err_code = INVALID_DIGITS;
+        return NULL;
+    }
 
     unsigned char *hmac = compute_hmac(K, C, algo);
     if (hmac == NULL) {
@@ -176,22 +201,19 @@ get_hotp(const char *K, long C, int N, int algo, cotp_error_t *err_code)
 char *
 get_totp(const char *K, int N, int algo, cotp_error_t *err_code)
 {
-    if (check_gcrypt() == -1) {
-        *err_code = GCRYPT_VERSION_MISMATCH;
-        return NULL;
-    }
-
-    N = check_otp_len(N);
-
-    long TC = ((long) time(NULL)) / 30;
-    cotp_error_t err;
-    char *token = get_hotp(K, TC, N, algo, &err);
-    if (token == NULL) {
-        *err_code = err;
-        return NULL;
-    }
-    return token;
+    return get_totp_at(K, (long)time(NULL), N, algo, err_code);
 }
+
+
+char *
+get_steam_totp (const char *secret, cotp_error_t *err_code)
+{
+    // AFAIK, the secret is stored base64 encoded on the device. As I don't have time to waste on reverse engineering
+    // this non-standard solution, the user is responsible for decoding the secret in whatever format this is and then
+    // providing the library with the secret base32 encoded.
+    return get_steam_totp_at (secret, (long)time(NULL), err_code);
+}
+
 
 
 char *
@@ -202,7 +224,10 @@ get_totp_at(const char *K, long T, int N, int algo, cotp_error_t *err_code)
         return NULL;
     }
 
-    N = check_otp_len(N);
+    if (check_otp_len(N) == INVALID_DIGITS) {
+        *err_code = INVALID_DIGITS;
+        return NULL;
+    }
 
     long TC = T / 30;
     cotp_error_t err;
@@ -213,6 +238,26 @@ get_totp_at(const char *K, long T, int N, int algo, cotp_error_t *err_code)
         return NULL;
     }
     return token;
+}
+
+
+char *
+get_steam_totp_at (const char *secret, long timestamp, cotp_error_t *err_code)
+{
+    if (check_gcrypt() == -1) {
+        *err_code = GCRYPT_VERSION_MISMATCH;
+        return NULL;
+    }
+
+    long TC = timestamp / 30;
+
+    unsigned char *hmac = compute_hmac(secret, TC, SHA1);
+    if (hmac == NULL) {
+        *err_code = INVALID_B32_INPUT;
+        return NULL;
+    }
+
+    return get_steam_code(hmac);
 }
 
 
