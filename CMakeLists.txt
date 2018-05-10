@@ -30,7 +30,7 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3")
 
 add_library(cotp SHARED ${SOURCE_FILES})
 
-target_link_libraries(cotp ${GCRYPT_LIBRARIES} ${BASEENCODE_LIBRARIES})
+target_link_libraries(cotp ${GCRYPT_LIBRARIES} ${BASEENCODE_LIBRARY})
 
 set_target_properties(cotp PROPERTIES VERSION ${BUILD_VERSION} SOVERSION ${BUILD_MAJOR})
 
