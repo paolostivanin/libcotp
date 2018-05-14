@@ -7,9 +7,9 @@ find_package(PkgConfig REQUIRED)
 find_package(Gcrypt 1.6.0 REQUIRED)
 pkg_check_modules(BASEENCODE REQUIRED baseencode>=1.0.5)
 
-include_directories(${GCRYPT_INCLUDE_DIR} ${BASEENCODE_INCLUDE_DIR})
+include_directories(${GCRYPT_INCLUDE_DIR} ${BASEENCODE_INCLUDE_DIRS})
 
-link_directories(${GCRYPT_LIBRARY_DIRS} ${BASEENCODE_LIBRARY_DIR})
+link_directories(${GCRYPT_LIBRARY_DIRS} ${BASEENCODE_LIBRARY_DIRS})
 
 enable_testing()
 add_subdirectory(tests)
@@ -30,7 +30,7 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3")
 
 add_library(cotp SHARED ${SOURCE_FILES})
 
-target_link_libraries(cotp ${GCRYPT_LIBRARIES} ${BASEENCODE_LIBRARY})
+target_link_libraries(cotp ${GCRYPT_LIBRARIES} ${BASEENCODE_LIBRARIES})
 
 set_target_properties(cotp PROPERTIES VERSION ${BUILD_VERSION} SOVERSION ${BUILD_MAJOR})
 
