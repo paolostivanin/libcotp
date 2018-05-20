@@ -17,7 +17,7 @@ add_subdirectory(tests)
 # set up versioning.
 set(BUILD_MAJOR "1")
 set(BUILD_MINOR "0")
-set(BUILD_VERSION "12")
+set(BUILD_VERSION "14")
 set(BUILD_VERSION ${BUILD_MAJOR}.${BUILD_MINOR}.${BUILD_VERSION})
 
 set(CMAKE_C_STANDARD 11)
@@ -50,5 +50,5 @@ install(
 )
 
 configure_file("cotp.pc.in" "cotp.pc" @ONLY)
-install(FILES "${CMAKE_CURRENT_BINARY_DIR}/cotp.pc" DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/pkgconfig/)
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/cotp.pc" DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig/)
 
