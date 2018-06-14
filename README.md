@@ -27,23 +27,26 @@ $ make
 
 ## How To Use It
 ```
-char *totp = get_totp (char *base32_encoded_secret, int digits, int algo, cotp_error_t *err);
+char *totp = get_totp (const char *base32_encoded_secret, int digits, int period, int algo, cotp_error_t *err);
 free (totp);
 
-char *hotp = get_hotp (char *base32_encoded_secret, long counter, int digits, int algo, cotp_error_t *err);
+char *steam_totp = get_steam_totp (const char *secret, int period, cotp_error_t *err)
+
+char *hotp = get_hotp (const char *base32_encoded_secret, long counter, int digits, int algo, cotp_error_t *err);
 free (hotp);
 
-char *get_totp_at (char *base32_encoded_secret, long target_date, int digits, int algo, cotp_error_t *err)
+char *get_totp_at (const char *base32_encoded_secret, long target_date, int digits, int algo, cotp_error_t *err)
 
-int is_valid = totp_verify (char *base32_encoded_secret, int digits, char *totp, int algo, cotp_error_t *err);
+int is_valid = totp_verify (const har *base32_encoded_secret, const char *totp, int digits, int period, int algo, cotp_error_t *err);
 
-int is_valid = hotp_verify (char *base32_encoded_secret, long counter, digits, char *hotp, int algo, cotp_error_t *err);
+int is_valid = hotp_verify (const char *base32_encoded_secret, long counter, digits, char *hotp, int algo, cotp_error_t *err);
 ```
 
 where:
 - `secret_key` is the **base32 encoded** secret. Usually, a website gives you the secret already base32 encoded, so you should pay attention to not encode the secret again.
 The format of the secret can either be `hxdm vjec jjws` or `HXDMVJECJJWS`. In the first case, the library will normalize the secret to second format before computing the OTP.
 - `digits` is either `6` or `8`
+- `period` is either `30` or `60` seconds
 - `counter` is a value decided with the server
 - `target_date` is the target date specified as the unix epoch format in seconds
 - `algo` is either `SHA1`, `SHA256` or `SHA512`
