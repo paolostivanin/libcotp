@@ -6,9 +6,9 @@
 #include "cotp.h"
 
 
-#define SHA1_DIGEST_SIZE 20
-#define SHA256_DIGEST_SIZE 32
-#define SHA512_DIGEST_SIZE 64
+#define SHA1_DIGEST_SIZE    20
+#define SHA256_DIGEST_SIZE  32
+#define SHA512_DIGEST_SIZE  64
 
 static int DIGITS_POWER[] = {1, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000};
 
@@ -17,8 +17,8 @@ static int
 check_gcrypt()
 {
     if (!gcry_control(GCRYCTL_INITIALIZATION_FINISHED_P)) {
-        if (!gcry_check_version("1.5.0")) {
-            fprintf(stderr, "libgcrypt v1.5.0 and above is required\n");
+        if (!gcry_check_version("1.6.0")) {
+            fprintf(stderr, "libgcrypt v1.6.0 and above is required\n");
             return -1;
         }
         gcry_control(GCRYCTL_DISABLE_SECMEM, 0);
@@ -149,6 +149,16 @@ finalize(int N, int tk)
 
 
 static int
+check_period(int P)
+{
+    if ((P != 30) && (P != 60)) {
+        return INVALID_PERIOD;
+    }
+    return VALID;
+}
+
+
+static int
 check_otp_len(int N)
 {
     if ((N != 6) && (N != 8)) {
@@ -170,7 +180,7 @@ check_algo(int algo)
 
 
 char *
-get_hotp(const char *K, long C, int N, int algo, cotp_error_t *err_code)
+get_hotp(const char *secret, long timestamp, int digits, int algo, cotp_error_t *err_code)
 {
     if (check_gcrypt() == -1) {
         *err_code = GCRYPT_VERSION_MISMATCH;
@@ -182,57 +192,62 @@ get_hotp(const char *K, long C, int N, int algo, cotp_error_t *err_code)
         return NULL;
     }
 
-    if (check_otp_len(N) == INVALID_DIGITS) {
+    if (check_otp_len(digits) == INVALID_DIGITS) {
         *err_code = INVALID_DIGITS;
         return NULL;
     }
 
-    unsigned char *hmac = compute_hmac(K, C, algo);
+    unsigned char *hmac = compute_hmac(secret, timestamp, algo);
     if (hmac == NULL) {
         *err_code = INVALID_B32_INPUT;
         return NULL;
     }
-    int tk = truncate(hmac, N, algo);
-    char *token = finalize(N, tk);
+    int tk = truncate(hmac, digits, algo);
+    char *token = finalize(digits, tk);
     return token;
 }
 
 
 char *
-get_totp(const char *K, int N, int algo, cotp_error_t *err_code)
+get_totp(const char *secret, int digits, int period, int algo, cotp_error_t *err_code)
 {
-    return get_totp_at(K, (long)time(NULL), N, algo, err_code);
+    return get_totp_at(secret, (long)time(NULL), digits, period, algo, err_code);
 }
 
 
 char *
-get_steam_totp (const char *secret, cotp_error_t *err_code)
+get_steam_totp (const char *secret, int period, cotp_error_t *err_code)
 {
     // AFAIK, the secret is stored base64 encoded on the device. As I don't have time to waste on reverse engineering
     // this non-standard solution, the user is responsible for decoding the secret in whatever format this is and then
     // providing the library with the secret base32 encoded.
-    return get_steam_totp_at (secret, (long)time(NULL), err_code);
+    return get_steam_totp_at (secret, (long)time(NULL), period, err_code);
 }
 
 
 
 char *
-get_totp_at(const char *K, long T, int N, int algo, cotp_error_t *err_code)
+get_totp_at(const char *secret, long current_timestamp, int digits, int period, int algo, cotp_error_t *err_code)
 {
     if (check_gcrypt() == -1) {
         *err_code = GCRYPT_VERSION_MISMATCH;
         return NULL;
     }
 
-    if (check_otp_len(N) == INVALID_DIGITS) {
+    if (check_otp_len(digits) == INVALID_DIGITS) {
         *err_code = INVALID_DIGITS;
         return NULL;
     }
 
-    long TC = T / 30;
-    cotp_error_t err;
+    if (check_period(period) == INVALID_PERIOD) {
+        *err_code = INVALID_PERIOD;
+        return NULL;
+    }
 
-    char *token = get_hotp(K, TC, N, algo, &err);
+    long timestamp = current_timestamp / period;
+
+    cotp_error_t err;
+    char *token = get_hotp(secret, timestamp, digits, algo, &err);
     if (token == NULL) {
         *err_code = err;
         return NULL;
@@ -242,16 +257,21 @@ get_totp_at(const char *K, long T, int N, int algo, cotp_error_t *err_code)
 
 
 char *
-get_steam_totp_at (const char *secret, long timestamp, cotp_error_t *err_code)
+get_steam_totp_at (const char *secret, long current_timestamp, int period, cotp_error_t *err_code)
 {
     if (check_gcrypt() == -1) {
         *err_code = GCRYPT_VERSION_MISMATCH;
         return NULL;
     }
 
-    long TC = timestamp / 30;
+    if (check_period(period) == INVALID_PERIOD) {
+        *err_code = INVALID_PERIOD;
+        return NULL;
+    }
 
-    unsigned char *hmac = compute_hmac(secret, TC, SHA1);
+    long timestamp = current_timestamp / period;
+
+    unsigned char *hmac = compute_hmac(secret, timestamp, SHA1);
     if (hmac == NULL) {
         *err_code = INVALID_B32_INPUT;
         return NULL;
@@ -262,13 +282,14 @@ get_steam_totp_at (const char *secret, long timestamp, cotp_error_t *err_code)
 
 
 int
-totp_verify(const char *K, int N, const char *user_totp, int algo)
+totp_verify(const char *secret, const char *user_totp, int digits, int period, int algo)
 {
     cotp_error_t err;
-    char *current_totp = get_totp(K, N, algo, &err);
+    char *current_totp = get_totp(secret, digits, period, algo, &err);
     if (current_totp == NULL) {
         return err;
     }
+
     int token_status;
     if (strcmp(current_totp, user_totp) != 0) {
         token_status = INVALID_OTP;
@@ -276,6 +297,7 @@ totp_verify(const char *K, int N, const char *user_totp, int algo)
         token_status = VALID;
     }
     free(current_totp);
+
     return token_status;
 }
 
@@ -288,6 +310,7 @@ hotp_verify(const char *K, long C, int N, const char *user_hotp, int algo)
     if (current_hotp == NULL) {
         return err;
     }
+
     int token_status;
     if (strcmp(current_hotp, user_hotp) != 0) {
         token_status = INVALID_OTP;
@@ -295,5 +318,6 @@ hotp_verify(const char *K, long C, int N, const char *user_hotp, int algo)
         token_status = VALID;
     }
     free(current_hotp);
+
     return token_status;
 }
