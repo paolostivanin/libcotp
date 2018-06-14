@@ -157,3 +157,18 @@ Test(totp_generic, test_steam_totp_input_b64) {
     cr_expect_null (totp, "Expected totp to be null");
     cr_expect_eq (err, INVALID_B32_INPUT, "Expected %d to be equal to %d\n", err, INVALID_B32_INPUT);
 }
+
+Test(totp_rfc6238, test_60seconds) {
+    const char *secret = "12345678901234567890";
+    const char *expected_totp = "360094";
+
+    baseencode_error_t base_err;
+    char *secret_base32 = base32_encode(secret, strlen(secret)+1, &base_err);
+
+    cotp_error_t err;
+    char *totp = get_totp_at(secret_base32, 1111111109, 6, 60, SHA1, &err);
+    cr_expect_str_eq(totp, expected_totp, "Expected %s to be equal to %s\n", totp, expected_totp);
+
+    free(totp);
+    free(secret_base32);
+}

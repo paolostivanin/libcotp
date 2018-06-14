@@ -225,7 +225,6 @@ get_steam_totp (const char *secret, int period, cotp_error_t *err_code)
 }
 
 
-
 char *
 get_totp_at(const char *secret, long current_timestamp, int digits, int period, int algo, cotp_error_t *err_code)
 {
