@@ -68,7 +68,7 @@ Test(hotp_rfc, test_6_digits) {
 
     cotp_error_t err;
     for (int i = 0; i < 10; i++) {
-        char *hotp = get_hotp(K_base32, counter[i], 6, 30, SHA1, &err);
+        char *hotp = get_hotp(K_base32, counter[i], 6, SHA1, &err);
         cr_expect_str_eq(hotp, expected_hotp[i], "Expected %s to be equal to %s\n", hotp, expected_hotp[i]);
         free(hotp);
     }
