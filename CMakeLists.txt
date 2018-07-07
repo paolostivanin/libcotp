@@ -17,7 +17,7 @@ add_subdirectory(tests)
 # set up versioning.
 set(BUILD_MAJOR "1")
 set(BUILD_MINOR "1")
-set(BUILD_VERSION "0")
+set(BUILD_VERSION "1")
 set(BUILD_VERSION ${BUILD_MAJOR}.${BUILD_MINOR}.${BUILD_VERSION})
 
 set(CMAKE_C_STANDARD 11)
@@ -32,7 +32,7 @@ add_library(cotp SHARED ${SOURCE_FILES})
 
 target_link_libraries(cotp ${GCRYPT_LIBRARIES} ${BASEENCODE_LIBRARIES})
 
-set_target_properties(cotp PROPERTIES VERSION ${BUILD_VERSION} SOVERSION ${BUILD_MAJOR})
+set_target_properties(cotp PROPERTIES VERSION ${BUILD_VERSION} SOVERSION ${BUILD_MAJOR}${BUILD_MINOR})
 
 include(GNUInstallDirs)
 set(LIB_INSTALL_DIR "${CMAKE_INSTALL_LIBDIR}") # "lib" or "lib64"
