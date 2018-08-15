@@ -151,7 +151,8 @@ finalize(int N, int tk)
 static int
 check_period(int P)
 {
-    if ((P != 30) && (P != 60)) {
+    // period can't be 0 or negative
+    if (P <= 0) {
         return INVALID_PERIOD;
     }
     return VALID;
@@ -161,7 +162,8 @@ check_period(int P)
 static int
 check_otp_len(int N)
 {
-    if ((N != 6) && (N != 8)) {
+    // digit length between 3 and 20
+    if (N < 3 || N > 20) {
         return INVALID_DIGITS;
     }
     return VALID;
