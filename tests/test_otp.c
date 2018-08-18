@@ -76,7 +76,7 @@ Test(hotp_rfc, test_6_digits) {
 }
 
 
-Test(hotp_rfc, test_wrong_digits) {
+Test(hotp_rfc, test_wrong_digits_2) {
     const char *K = "this is a secret";
 
     cotp_error_t err;
@@ -89,11 +89,37 @@ Test(hotp_rfc, test_wrong_digits) {
 }
 
 
-Test(hotp_rfc, test_wrong_period) {
+Test(hotp_rfc, test_wrong_digits_16) {
+    const char *K = "this is a secret";
+
+    cotp_error_t err;
+    char *totp = get_totp (K, 16, 30, SHA1, &err);
+
+    cr_expect_null (totp, "Expected totp to be null");
+    cr_expect_eq (err, INVALID_DIGITS, "Expected %d to be equal to %d\n", err, INVALID_DIGITS);
+
+    free (totp);
+}
+
+
+Test(hotp_rfc, test_period_zero) {
     const char *K = "this is a secret";
 
     cotp_error_t err;
     char *totp = get_totp (K, 6, 0, SHA1, &err);
+
+    cr_expect_null (totp, "Expected totp to be null");
+    cr_expect_eq (err, INVALID_PERIOD, "Expected %d to be equal to %d\n", err, INVALID_PERIOD);
+
+    free (totp);
+}
+
+
+Test(hotp_rfc, test_wrong_negative) {
+    const char *K = "this is a secret";
+
+    cotp_error_t err;
+    char *totp = get_totp (K, 6, -20, SHA1, &err);
 
     cr_expect_null (totp, "Expected totp to be null");
     cr_expect_eq (err, INVALID_PERIOD, "Expected %d to be equal to %d\n", err, INVALID_PERIOD);

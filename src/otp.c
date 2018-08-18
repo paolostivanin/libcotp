@@ -71,7 +71,7 @@ get_steam_code(unsigned const char *hmac)
 
 
 static int
-truncate(unsigned const char *hmac, int N, int algo)
+truncate(unsigned const char *hmac, int digits_length, int algo)
 {
     // take the lower four bits of the last byte
     int offset = 0;
@@ -92,7 +92,7 @@ truncate(unsigned const char *hmac, int N, int algo)
     // Starting from the offset, take the successive 4 bytes while stripping the topmost bit to prevent it being handled as a signed integer
     int bin_code = ((hmac[offset] & 0x7f) << 24) | ((hmac[offset + 1] & 0xff) << 16) | ((hmac[offset + 2] & 0xff) << 8) | ((hmac[offset + 3] & 0xff));
 
-    int token = bin_code % DIGITS_POWER[N];
+    int token = bin_code % DIGITS_POWER[digits_length];
 
     return token;
 }
@@ -130,18 +130,18 @@ compute_hmac(const char *K, long C, int algo)
 
 
 static char *
-finalize(int N, int tk)
+finalize(int digits_length, int tk)
 {
-    char *token = malloc((size_t)N + 1);
+    char *token = malloc((size_t)digits_length + 1);
     if (token == NULL) {
         fprintf (stderr, "Error during memory allocation\n");
         return NULL;
     } else {
         char *fmt = calloc(1, 5);
         memcpy (fmt, "%.", 2);
-        snprintf (fmt+2, 2, "%d", N);
+        snprintf (fmt+2, 2, "%d", digits_length);
         memcpy (fmt+3, "d", 2);
-        snprintf (token, N+1, fmt, tk);
+        snprintf (token, digits_length + 1, fmt, tk);
         free (fmt);
     }
     return token;
@@ -149,10 +149,9 @@ finalize(int N, int tk)
 
 
 static int
-check_period(int P)
+check_period(int period)
 {
-    // period can't be 0 or negative
-    if (P <= 0) {
+    if (period <= 0 || period > 120) {
         return INVALID_PERIOD;
     }
     return VALID;
@@ -160,10 +159,9 @@ check_period(int P)
 
 
 static int
-check_otp_len(int N)
+check_otp_len(int digits_length)
 {
-    // digit length between 3 and 20
-    if (N < 3 || N > 20) {
+    if (digits_length < 3 || digits_length > 15) {
         return INVALID_DIGITS;
     }
     return VALID;
