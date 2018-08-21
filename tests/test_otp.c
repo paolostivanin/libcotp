@@ -22,6 +22,23 @@ Test(totp_rfc6238, test_8_digits_sha1) {
 }
 
 
+Test(totp_rfc6238, test_10_digits_sha1) {
+    const char *K = "12345678901234567890";
+    const long counter = 1234567890;
+    const char *expected_totp = "0689005924";
+
+    baseencode_error_t base_err;
+    char *K_base32 = base32_encode(K, strlen(K)+1, &base_err);
+
+    cotp_error_t err;
+    char *totp = get_totp_at(K_base32, counter, 10, 30, SHA1, &err);
+    cr_expect_str_eq(totp, expected_totp, "Expected %s to be equal to %s\n", totp, expected_totp);
+    free(totp);
+    free(K_base32);
+}
+
+
+
 Test(totp_rfc6238, test_8_digits_sha256) {
     const char *K = "12345678901234567890123456789012";
     const int64_t counter[] = {59, 1111111109, 1111111111, 1234567890, 2000000000, 20000000000};

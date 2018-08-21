@@ -57,7 +57,7 @@ The format of the secret can either be `hxdm vjec jjws` or `HXDMVJECJJWS`. In th
 - `INVALID_B32_INPUT`, set if the given input is not valid base32 text
 - `INVALID_ALGO`, set if the given algo is not supported by the library
 - `INVALID_PERIOD`, set if `period` is `<= 0` or `> 120` seconds
-- `INVALID_DIGITS`, set if `digits` is `< 3` or `> 15`
+- `INVALID_DIGITS`, set if `digits` is `< 3` or `> 10`
 
 `totp_verify` and `hotp_verify` can return, in addition to one of the previous code, also the error `INVALID_OTP` if the given OTP doesn't match the computed one.
 

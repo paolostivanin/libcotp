@@ -5,12 +5,11 @@
 #include <baseencode.h>
 #include "cotp.h"
 
-
 #define SHA1_DIGEST_SIZE    20
 #define SHA256_DIGEST_SIZE  32
 #define SHA512_DIGEST_SIZE  64
 
-static int DIGITS_POWER[] = {1, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000};
+static long long int DIGITS_POWER[] = {1, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000, 1000000000, 10000000000};
 
 
 static int
@@ -137,10 +136,11 @@ finalize(int digits_length, int tk)
         fprintf (stderr, "Error during memory allocation\n");
         return NULL;
     } else {
-        char *fmt = calloc(1, 5);
+        int extra_char = digits_length < 10 ? 0 : 1;
+        char *fmt = calloc(1, 5 + extra_char);
         memcpy (fmt, "%.", 2);
-        snprintf (fmt+2, 2, "%d", digits_length);
-        memcpy (fmt+3, "d", 2);
+        snprintf (fmt + 2, 2 + extra_char, "%d", digits_length);
+        memcpy (fmt + 3 + extra_char, "d", 2);
         snprintf (token, digits_length + 1, fmt, tk);
         free (fmt);
     }
@@ -161,7 +161,7 @@ check_period(int period)
 static int
 check_otp_len(int digits_length)
 {
-    if (digits_length < 3 || digits_length > 15) {
+    if (digits_length < 3 || digits_length > 10) {
         return INVALID_DIGITS;
     }
     return VALID;
