@@ -45,8 +45,8 @@ int is_valid = hotp_verify (const char *base32_encoded_secret, long counter, dig
 where:
 - `secret_key` is the **base32 encoded** secret. Usually, a website gives you the secret already base32 encoded, so you should pay attention to not encode the secret again.
 The format of the secret can either be `hxdm vjec jjws` or `HXDMVJECJJWS`. In the first case, the library will normalize the secret to second format before computing the OTP.
-- `digits` is either `6` or `8`
-- `period` is either `30` or `60` seconds
+- `digits` is between `3` and `10` inclusive
+- `period` is between `1` and `120` inclusive
 - `counter` is a value decided with the server
 - `target_date` is the target date specified as the unix epoch format in seconds
 - `algo` is either `SHA1`, `SHA256` or `SHA512`
