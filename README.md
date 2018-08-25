@@ -14,6 +14,7 @@ C library that generates TOTP and HOTP according to [RFC-6238](https://tools.iet
 ## Requirements
 - [libbaseencode](https://github.com/paolostivanin/libbaseencode)
 - GCC/Clang and CMake to build the library
+- libgcrypt
 
 ## Build and Install
 ```
