@@ -15,7 +15,9 @@ typedef enum _cotp_errno {
     INVALID_PERIOD          = 6
 } cotp_error_t;
 
-
+#ifdef __cplusplus
+extern "C" {
+#endif
 char   *get_hotp            (const char     *base32_encoded_secret,
                              long            counter,
                              int             digits,
@@ -56,3 +58,8 @@ int     hotp_verify         (const char     *base32_encoded_secret,
                              int             digits,
                              const char     *user_hotp,
                              int             sha_algo);
+
+    
+#ifdef __cplusplus
+}
+#endif
