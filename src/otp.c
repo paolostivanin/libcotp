@@ -89,6 +89,11 @@ compute_hmac(const char *K, long C, int algo)
         return NULL;
     }
 
+    if(secret_len > (size_t)strlen((char*)secret))
+    {
+        secret_len = (size_t)strlen((char*)secret);
+    }
+
     unsigned char C_reverse_byte_order[8];
     int j, i;
     for (j = 0, i = 7; j < 8 && i >= 0; j++, i--)
