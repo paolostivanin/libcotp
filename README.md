@@ -4,11 +4,6 @@
        src="https://scan.coverity.com/projects/12748/badge.svg"/>
 </a>
 
-<a href="https://app.shippable.com/github/paolostivanin/libcotp">
-  <img alt="Shippable Build Status"
-       src="https://api.shippable.com/projects/58e3d5759401b40600a7c026/badge?branch=master"/>
-</a>
-
 C library that generates TOTP and HOTP according to [RFC-6238](https://tools.ietf.org/html/rfc6238)
 
 ## Requirements
