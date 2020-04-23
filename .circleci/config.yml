@@ -1,0 +1,33 @@
+version: 2.1
+
+jobs:
+  ubuntu1804:
+    docker:
+      - image: ubuntu:18.04
+    steps:
+      - checkout
+      - run: apt update && apt -y install git gcc clang cmake
+      - run: apt install -y software-properties-common apt-transport-https
+      - run: add-apt-repository ppa:snaipewastaken/ppa
+      - run: apt update && apt -y install criterion-dev
+      - run: chmod +x .ci/install_dep.sh
+      - run: chmod +x .ci/run_tests.sh
+
+  ubuntuLatestRolling:
+    docker:
+      - image: ubuntu:rolling
+    steps:
+      - checkout
+      - run: apt update && apt -y install git gcc clang cmake
+      - run: apt -y install software-properties-common apt-transport-https
+      - run: add-apt-repository ppa:snaipewastaken/ppa
+      - run: apt update && apt -y install criterion-dev
+      - run: chmod +x .ci/install_dep.sh
+      - run: chmod +x .ci/run_tests.sh
+
+workflows:
+  version: 2
+  build:
+    jobs:
+      - ubuntu1804
+      - ubuntuLatestRolling 
