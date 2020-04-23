@@ -6,7 +6,7 @@ jobs:
       - image: ubuntu:18.04
     steps:
       - checkout
-      - run: apt update && apt -y install git gcc clang cmake
+      - run: apt update && apt -y install git gcc clang cmake pkg-config libgcrypt20-dev
       - run: apt install -y software-properties-common apt-transport-https
       - run: add-apt-repository ppa:snaipewastaken/ppa
       - run: apt update && apt -y install criterion-dev

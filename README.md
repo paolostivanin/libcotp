@@ -58,3 +58,4 @@ The format of the secret can either be `hxdm vjec jjws` or `HXDMVJECJJWS`. In th
 `totp_verify` and `hotp_verify` can return, in addition to one of the previous code, also the error `INVALID_OTP` if the given OTP doesn't match the computed one.
 
 In case of success, the value returned by `get_totp`, `get_hotp` and `get_totp_at` **must be freed** once no longer needed.
+
