@@ -1,6 +1,6 @@
 #include <criterion/criterion.h>
 #include <string.h>
-#include <cotp.h>
+#include "../src/cotp.h"
 #include <baseencode.h>
 
 
