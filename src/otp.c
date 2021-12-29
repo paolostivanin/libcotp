@@ -31,6 +31,10 @@ static char *
 normalize_secret (const char *K)
 {
     char *nK = calloc (1, strlen (K) + 1);
+    if (nK == NULL) {
+        fprintf (stderr, "Error during memory allocation\n");
+        return nK;
+    }
 
     int i = 0, j = 0;
     while (K[i] != '\0') {
@@ -58,9 +62,10 @@ get_steam_code(unsigned const char *hmac)
     const char steam_alphabet[] = "23456789BCDFGHJKMNPQRTVWXY";
 
     char code[6];
+    size_t steam_alphabet_len = strlen(steam_alphabet);
     for (int i = 0; i < 5; i++) {
-        int mod = bin_code % strlen(steam_alphabet);
-        bin_code = bin_code / strlen(steam_alphabet);
+        int mod = bin_code % steam_alphabet_len;
+        bin_code = bin_code / steam_alphabet_len;
         code[i] = steam_alphabet[mod];
     }
     code[5] = '\0';
@@ -104,6 +109,9 @@ compute_hmac(const char *K, long C, int algo)
     size_t secret_len = (size_t) ((strlen(K) + 1.6 - 1) / 1.6);
 
     char *normalized_K = normalize_secret (K);
+    if (normalized_K == NULL) {
+        return NULL;
+    }
     unsigned char *secret = base32_decode(normalized_K, strlen(normalized_K), &err);
     free (normalized_K);
     if (secret == NULL) {
@@ -134,11 +142,16 @@ finalize(int digits_length, int tk)
     char *token = malloc((size_t)digits_length + 1);
     if (token == NULL) {
         fprintf (stderr, "Error during memory allocation\n");
-        return NULL;
+        return token;
     } else {
         int extra_char = digits_length < 10 ? 0 : 1;
         char *fmt = calloc(1, 5 + extra_char);
-        memcpy (fmt, "%.", 2);
+        if (fmt == NULL) {
+            fprintf (stderr, "Error during memory allocation\n");
+            free (token);
+            return fmt;
+        }
+        memcpy (fmt, "%.", 3);
         snprintf (fmt + 2, 2 + extra_char, "%d", digits_length);
         memcpy (fmt + 3 + extra_char, "d", 2);
         snprintf (token, digits_length + 1, fmt, tk);
