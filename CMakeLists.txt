@@ -51,6 +51,19 @@ install(
   DESTINATION ${COTP_INC_DIR}
 )
 
+# Allow adding prefix if CMAKE_INSTALL_INCLUDEDIR not absolute.
+if(IS_ABSOLUTE "${CMAKE_INSTALL_INCLUDEDIR}")
+    set(PKGCONFIG_TARGET_INCLUDES "${CMAKE_INSTALL_INCLUDEDIR}")
+else()
+    set(PKGCONFIG_TARGET_INCLUDES "\${prefix}/${CMAKE_INSTALL_INCLUDEDIR}")
+endif()
+# Allow adding prefix if CMAKE_INSTALL_LIBDIR not absolute.
+if(IS_ABSOLUTE "${CMAKE_INSTALL_LIBDIR}")
+    set(PKGCONFIG_TARGET_LIBS "${CMAKE_INSTALL_LIBDIR}")
+else()
+    set(PKGCONFIG_TARGET_LIBS "\${exec_prefix}/${CMAKE_INSTALL_LIBDIR}")
+endif()
+
 configure_file("cotp.pc.in" "cotp.pc" @ONLY)
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/cotp.pc" DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig/)
 
