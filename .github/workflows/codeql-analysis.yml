@@ -55,7 +55,7 @@ jobs:
         
     - name: Install Dependencies
       run: |
-        sudo apt update && DEBIAN_FRONTEND=noninteractive sudo apt -y install git gcc cmake
+        sudo apt update && DEBIAN_FRONTEND=noninteractive sudo apt -y install git gcc cmake libgcrypt20-dev
         git clone https://github.com/paolostivanin/libcotp ./cotp
         cd cotp &&  chmod +x .circleci/install_deps.sh && sudo .circleci/install_deps.sh
     
