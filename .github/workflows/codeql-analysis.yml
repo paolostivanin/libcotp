@@ -23,7 +23,7 @@ on:
 jobs:
   analyze:
     name: Analyze
-    runs-on: debian-latest
+    runs-on: ubuntu-latest
     permissions:
       actions: read
       contents: read
@@ -55,7 +55,9 @@ jobs:
         
     - name: Install Dependencies
       run: |
-        sudo apt update && DEBIAN_FRONTEND=noninteractive sudo apt -y install libbaseencode-dev
+        sudo apt update && DEBIAN_FRONTEND=noninteractive sudo apt -y install git gcc cmake
+        git clone https://github.com/paolostivanin/libcotp ./cotp
+        cd cotp &&  chmod +x .circleci/install_deps.sh && sudo .circleci/install_deps.sh
     
     - name: Build
       run: |
