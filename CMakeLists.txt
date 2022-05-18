@@ -3,6 +3,8 @@ project(cotp)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
+include(GNUInstallDirs)
+
 find_package(PkgConfig REQUIRED)
 find_package(Gcrypt 1.6.0 REQUIRED)
 pkg_check_modules(BASEENCODE REQUIRED baseencode>=1.0.5)
@@ -17,7 +19,7 @@ add_subdirectory(tests)
 # set up versioning.
 set(BUILD_MAJOR "1")
 set(BUILD_MINOR "2")
-set(BUILD_VERSION "4")
+set(BUILD_VERSION "5")
 set(BUILD_VERSION ${BUILD_MAJOR}.${BUILD_MINOR}.${BUILD_VERSION})
 
 set(CMAKE_C_STANDARD 11)
@@ -34,19 +36,19 @@ target_link_libraries(cotp ${GCRYPT_LIBRARIES} ${BASEENCODE_LIBRARIES})
 
 set_target_properties(cotp PROPERTIES VERSION ${BUILD_VERSION} SOVERSION ${BUILD_MAJOR}${BUILD_MINOR})
 
-include(GNUInstallDirs)
-set(LIB_INSTALL_DIR "${CMAKE_INSTALL_LIBDIR}") # "lib" or "lib64"
+set(COTP_LIB_DIR "${CMAKE_INSTALL_LIBDIR}")
+set(COTP_INC_DIR "${CMAKE_INSTALL_INCLUDEDIR}")
 
 install(
   TARGETS cotp
-  ARCHIVE DESTINATION ${LIB_INSTALL_DIR}
-  LIBRARY DESTINATION ${LIB_INSTALL_DIR}
+  ARCHIVE DESTINATION ${COTP_LIB_DIR}
+  LIBRARY DESTINATION ${COTP_LIB_DIR}
   COMPONENT library
 )
 
 install(
   FILES ${COTP_HEADERS}
-  DESTINATION include
+  DESTINATION ${COTP_INC_DIR}
 )
 
 configure_file("cotp.pc.in" "cotp.pc" @ONLY)

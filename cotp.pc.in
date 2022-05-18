@@ -1,10 +1,5 @@
-prefix=@CMAKE_INSTALL_PREFIX@
-exec_prefix=${prefix}
-libdir=${prefix}/@CMAKE_INSTALL_LIBDIR@
-includedir=${prefix}/@CMAKE_INSTALL_INCLUDEDIR@
-
 Name: libcotp
 Description: C library that generates TOTP and HOTP
 Version: @BUILD_VERSION@
-Libs: -L${libdir} -lcotp
-Cflags: -I${includedir}
+Libs: -L@CMAKE_INSTALL_PREFIX@/@COTP_LIB_DIR@ -lcotp
+Cflags: -I@CMAKE_INSTALL_PREFIX@/@COTP_INC_DIR@
