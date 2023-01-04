@@ -106,7 +106,7 @@ static unsigned char *
 compute_hmac(const char *K, long C, int algo)
 {
     baseencode_error_t err;
-    size_t secret_len = (size_t) ((strlen(K) + 1.6 - 1) / 1.6);
+    size_t secret_len = (size_t)((strlen(K) + 1.6 - 1) / 1.6);
 
     char *normalized_K = normalize_secret (K);
     if (normalized_K == NULL) {
@@ -124,13 +124,24 @@ compute_hmac(const char *K, long C, int algo)
         C_reverse_byte_order[i] = ((unsigned char *) &C)[j];
 
     gcry_md_hd_t hd;
-    gcry_md_open(&hd, algo, GCRY_MD_FLAG_HMAC);
-    gcry_md_setkey(hd, secret, secret_len);
-    gcry_md_write(hd, C_reverse_byte_order, sizeof(C_reverse_byte_order));
+    gpg_error_t gpg_err = gcry_md_open (&hd, algo, GCRY_MD_FLAG_HMAC);
+    if (gpg_err) {
+        printf("%s\n", "Error while opening the cipher handle.");
+        return NULL;
+    }
+    gpg_err = gcry_md_setkey (hd, secret, secret_len);
+    if (gpg_err) {
+        printf("%s\n", "Error while setting the cipher key.");
+        gcry_md_close (hd);
+        return NULL;
+    }
+    gcry_md_write (hd, C_reverse_byte_order, sizeof(C_reverse_byte_order));
     gcry_md_final (hd);
-    unsigned char *hmac = gcry_md_read(hd, algo);
+    unsigned char *hmac = gcry_md_read (hd, algo);
 
-    free(secret);
+    free (secret);
+
+    gcry_md_close (hd);
 
     return hmac;
 }

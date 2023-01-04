@@ -7,7 +7,7 @@ include(GNUInstallDirs)
 
 find_package(PkgConfig REQUIRED)
 find_package(Gcrypt 1.6.0 REQUIRED)
-pkg_check_modules(BASEENCODE REQUIRED baseencode>=1.0.5)
+pkg_check_modules(BASEENCODE REQUIRED baseencode>=1.0.14)
 
 include_directories(${GCRYPT_INCLUDE_DIR} ${BASEENCODE_INCLUDE_DIRS})
 
@@ -19,7 +19,7 @@ add_subdirectory(tests)
 # set up versioning.
 set(BUILD_MAJOR "1")
 set(BUILD_MINOR "2")
-set(BUILD_VERSION "6")
+set(BUILD_VERSION "7")
 set(BUILD_VERSION ${BUILD_MAJOR}.${BUILD_MINOR}.${BUILD_VERSION})
 
 set(CMAKE_C_STANDARD 11)
