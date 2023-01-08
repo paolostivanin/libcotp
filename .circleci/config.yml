@@ -24,10 +24,7 @@ jobs:
     steps:
       - checkout
       - run: apt update && apt -y install git gcc clang cmake libcriterion-dev libbaseencode-dev
-      - run: mkdir build && cd "$_"
-      - run: cmake -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_TESTING=ON ..
-      - run: make && make install
-      - run: ./tests/test_cotp
+      - run: mkdir build && cd "$_" && cmake -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_TESTING=ON .. && make && make install && ./tests/test_cotp
 
 workflows:
   version: 2
