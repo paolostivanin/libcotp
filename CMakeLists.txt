@@ -7,7 +7,7 @@ include(GNUInstallDirs)
 
 find_package(PkgConfig REQUIRED)
 find_package(Gcrypt 1.6.0 REQUIRED)
-pkg_check_modules(BASEENCODE REQUIRED baseencode>=1.0.14)
+pkg_check_modules(BASEENCODE REQUIRED baseencode>=1.0.12)
 
 include_directories(${GCRYPT_INCLUDE_DIR} ${BASEENCODE_INCLUDE_DIRS})
 
