@@ -1,5 +1,4 @@
 #include <stdio.h>
-#include <stdlib.h>
 #include <time.h>
 #include <string.h>
 #include <gcrypt.h>
@@ -65,8 +64,8 @@ get_steam_code(unsigned const char *hmac)
     char code[6];
     size_t steam_alphabet_len = strlen(steam_alphabet);
     for (int i = 0; i < 5; i++) {
-        int mod = bin_code % steam_alphabet_len;
-        bin_code = bin_code / steam_alphabet_len;
+        int mod = (int)(bin_code % steam_alphabet_len);
+        bin_code = (int)(bin_code / steam_alphabet_len);
         code[i] = steam_alphabet[mod];
     }
     code[5] = '\0';
@@ -79,25 +78,12 @@ static int
 truncate(unsigned const char *hmac, int digits_length, int algo)
 {
     // take the lower four bits of the last byte
-    int offset = 0;
-    switch (algo) {
-        case SHA1:
-            offset = (hmac[SHA1_DIGEST_SIZE-1] & 0x0f);
-            break;
-        case SHA256:
-            offset = (hmac[SHA256_DIGEST_SIZE-1] & 0x0f);
-            break;
-        case SHA512:
-            offset = (hmac[SHA512_DIGEST_SIZE-1] & 0x0f);
-            break;
-        default:
-            break;
-    }
+    int offset = hmac[gcry_md_get_algo_dlen (algo) - 1] & 0x0f;
 
     // Starting from the offset, take the successive 4 bytes while stripping the topmost bit to prevent it being handled as a signed integer
     int bin_code = ((hmac[offset] & 0x7f) << 24) | ((hmac[offset + 1] & 0xff) << 16) | ((hmac[offset + 2] & 0xff) << 8) | ((hmac[offset + 3] & 0xff));
 
-    int token = bin_code % DIGITS_POWER[digits_length];
+    int token = (int)(bin_code % DIGITS_POWER[digits_length]);
 
     return token;
 }

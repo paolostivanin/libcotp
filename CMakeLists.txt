@@ -19,7 +19,7 @@ add_subdirectory(tests)
 # set up versioning.
 set(BUILD_MAJOR "1")
 set(BUILD_MINOR "2")
-set(BUILD_VERSION "7")
+set(BUILD_VERSION "8")
 set(BUILD_VERSION ${BUILD_MAJOR}.${BUILD_MINOR}.${BUILD_VERSION})
 
 set(CMAKE_C_STANDARD 11)
