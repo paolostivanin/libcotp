@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <time.h>
 #include <string.h>
 #include <gcrypt.h>
@@ -137,7 +138,22 @@ compute_hmac(const char *K, long C, int algo)
     }
     gcry_md_write (hd, C_reverse_byte_order, sizeof(C_reverse_byte_order));
     gcry_md_final (hd);
-    unsigned char *hmac = gcry_md_read (hd, algo);
+
+    unsigned char * hmac_tmp = gcry_md_read (hd, algo);
+    if (hmac_tmp == NULL) {
+        fprintf(stderr, "Error getting digest\n");
+        gcry_md_close (hd);
+        return NULL;
+    }
+
+    size_t dlen = gcry_md_get_algo_dlen(algo);
+    unsigned char *hmac = malloc (dlen);
+    if (hmac == NULL) {
+        perror("Error allocating memory");
+        gcry_md_close (hd);
+        return NULL;
+    }
+    memcpy (hmac, hmac_tmp, dlen);
 
     free (secret);
 
@@ -226,8 +242,11 @@ get_hotp(const char *secret, long timestamp, int digits, int algo, cotp_error_t 
         *err_code = INVALID_B32_INPUT;
         return NULL;
     }
+
     int tk = truncate(hmac, digits, algo);
     char *token = finalize(digits, tk);
+
+    free(hmac);
     return token;
 }
 
@@ -300,7 +319,10 @@ get_steam_totp_at (const char *secret, long current_timestamp, int period, cotp_
         return NULL;
     }
 
-    return get_steam_code(hmac);
+    char * totp = get_steam_code(hmac);
+
+    free(hmac);
+    return totp;
 }
 
 
