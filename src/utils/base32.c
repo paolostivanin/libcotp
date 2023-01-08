@@ -11,16 +11,16 @@
 // if 64 MB of data is encoded than it should be also possible to decode it. That's why a bigger input is allowed for decoding
 #define MAX_DECODE_BASE32_INPUT_LEN ((MAX_ENCODE_INPUT_LEN * 8 + 4) / 5)
 
-static int is_valid_b32_input   (const char    *user_data);
+static int          is_valid_b32_input (const char    *user_data);
 
-static int get_char_index       (uint8_t        c);
+static int          get_char_index     (uint8_t        c);
 
-static cotp_error_t check_input (const uint8_t *user_data,
-                                 size_t         data_len,
-                                 int            max_len);
+static cotp_error_t check_input        (const uint8_t *user_data,
+                                        size_t         data_len,
+                                        int            max_len);
 
-static int strip_char           (char          *str,
-                                 char           strip);
+static int          strip_char         (char          *str,
+                                        char           strip);
 
 static const uint8_t b32_alphabet[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
 
