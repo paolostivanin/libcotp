@@ -18,14 +18,13 @@ jobs:
       - run: chmod +x .circleci/install_deps.sh
       - run: chmod +x .circleci/build_only.sh
 
-  archlinux:
+  ubuntuLatest:
     docker:
-      - image: archlinux:latest
+      - image: ubuntu:latest
     steps:
       - checkout
-      - run: pacman -Syu --noconfirm && pacman -S --noconfirm pkg-config git gcc cmake make
-      - run: chmod +x .circleci/install_deps.sh
-      - run: chmod +x .circleci/build_only.sh
+      - run: apt update && apt -y install git gcc clang cmake libcriterion-dev libbaseencode-dev
+      - run: chmod +x .circleci/build_and_tests.sh
 
 workflows:
   version: 2
@@ -33,5 +32,5 @@ workflows:
     jobs:
       - debianLatestStable
       - fedoraLatestStable
-      - archlinux
+      - ubuntuLatest
 
