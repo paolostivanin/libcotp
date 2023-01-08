@@ -7,12 +7,12 @@ jobs:
     steps:
       - checkout
       - run:
-        command: |
-          apt update && apt -y install git gcc clang cmake libcriterion-dev libbaseencode-dev libgcrypt20-dev
-          mkdir build && cd "$_"
-          cmake -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_TESTING=ON ..
-          make && make install
-          ./tests/test_cotp
+          command: |
+            apt update && apt -y install git gcc clang cmake libcriterion-dev libbaseencode-dev libgcrypt20-dev
+            mkdir build && cd "$_"
+            cmake -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_TESTING=ON ..
+            make && make install
+            ./tests/test_cotp
 
   fedoraLatestStable:
     docker:
@@ -29,12 +29,12 @@ jobs:
     steps:
       - checkout
       - run:
-        command: |
-          apt update && apt -y install git gcc clang cmake libcriterion-dev libbaseencode-dev libgcrypt20-dev
-          mkdir build && cd "$_"
-          cmake -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_TESTING=ON ..
-          make && make install
-          ./tests/test_cotp
+          command: |
+            apt update && apt -y install git gcc clang cmake libcriterion-dev libbaseencode-dev libgcrypt20-dev
+            mkdir build && cd "$_"
+            cmake -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_TESTING=ON ..
+            make && make install
+            ./tests/test_cotp
 
 workflows:
   version: 2
