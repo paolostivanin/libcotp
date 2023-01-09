@@ -25,12 +25,16 @@ $ make
 char *totp = get_totp (const char *base32_encoded_secret, int digits, int period, int algo, cotp_error_t *err);
 free (totp);
 
-char *steam_totp = get_steam_totp (const char *secret, int period, cotp_error_t *err)
+char *steam_totp = get_steam_totp (const char *secret, int period, cotp_error_t *err);
+free (steam_totp);
 
 char *hotp = get_hotp (const char *base32_encoded_secret, long counter, int digits, int algo, cotp_error_t *err);
 free (hotp);
 
-char *get_totp_at (const char *base32_encoded_secret, long target_date, int digits, int algo, cotp_error_t *err)
+char *totp_at = get_totp_at (const char *base32_encoded_secret, long target_date, int digits, int algo, cotp_error_t *err);
+free (totp_at);
+
+int64_t otp_to_int (const char *otp, cotp_error_t *err_code);
 ```
 
 where:
@@ -64,5 +68,5 @@ The function `otp_to_int`:
 * returns `-1` if an error occurs and sets `err` to `INVALID_USER_INPUT`.
 * warns the user if the leading zero is missing. For example, since the otp string `"012345"` **can't** be returned as the integer `012345` (because it would be interpreted as octal number), the function returns `12345` and sets `err` to `MISSING_LEADING_ZERO`)
 
-In case of success, the value returned by `get_totp`, `get_hotp` and `get_totp_at` **must be freed** once no longer needed.
+In case of success, the value returned by `get_totp`, `get_hotp`, `get_totp_at` and `get_steam_totp` **must be freed** once no longer needed.
 
