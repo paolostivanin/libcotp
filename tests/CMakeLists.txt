@@ -1,10 +1,20 @@
 
 IF(BUILD_TESTING)
     add_executable (test_cotp test_otp.c)
+    add_executable (test_base32encode test_base32encode.c)
+    add_executable (test_base32decode test_base32decode.c)
 
-    target_link_libraries (test_cotp -lcotp -lcriterion -lbaseencode -lgcrypt)
+    target_link_libraries (test_cotp -lcotp -lcriterion -lgcrypt)
+    target_link_libraries (test_base32encode -lcotp -lcriterion -lgcrypt)
+    target_link_libraries (test_base32decode -lcotp -lcriterion -lgcrypt)
     target_link_directories (test_cotp PRIVATE ${PROJECT_BINARY_DIR})
+    target_link_directories (test_base32encode PRIVATE ${PROJECT_BINARY_DIR})
+    target_link_directories (test_base32decode PRIVATE ${PROJECT_BINARY_DIR})
     add_dependencies (test_cotp cotp)
+    add_dependencies (test_base32encode cotp)
+    add_dependencies (test_base32decode cotp)
 
     add_test (NAME TestCOTP COMMAND test_cotp)
+    add_test (NAME TestBase32Encode COMMAND test_base32encode)
+    add_test (NAME TestBase32Decode COMMAND test_base32decode)
 ENDIF(BUILD_TESTING)

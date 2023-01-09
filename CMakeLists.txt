@@ -1,13 +1,12 @@
-cmake_minimum_required(VERSION 3.5)
-project(cotp)
+cmake_minimum_required(VERSION 3.20)
+project(cotp VERSION "2.0.0" LANGUAGES "C")
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
 include(GNUInstallDirs)
 
 find_package(PkgConfig REQUIRED)
-find_package(Gcrypt 1.6.0 REQUIRED)
-pkg_check_modules(BASEENCODE REQUIRED baseencode>=1.0.12)
+find_package(Gcrypt 1.8.0 REQUIRED)
 
 include_directories(${GCRYPT_INCLUDE_DIR} ${BASEENCODE_INCLUDE_DIRS})
 
@@ -16,25 +15,28 @@ link_directories(${GCRYPT_LIBRARY_DIRS} ${BASEENCODE_LIBRARY_DIRS})
 enable_testing()
 add_subdirectory(tests)
 
-# set up versioning.
-set(BUILD_MAJOR "1")
-set(BUILD_MINOR "2")
-set(BUILD_VERSION "8")
-set(BUILD_VERSION ${BUILD_MAJOR}.${BUILD_MINOR}.${BUILD_VERSION})
-
 set(CMAKE_C_STANDARD 11)
 
-set(COTP_HEADERS src/cotp.h)
-set(SOURCE_FILES src/otp.c)
+set(COTP_HEADERS
+        src/cotp.h
+        )
+set(SOURCE_FILES
+        src/otp.c
+        src/utils/base32.c
+        )
 
-set(CMAKE_C_FLAGS "-Wall -Wextra -O3 -Wno-format-truncation -fstack-protector-strong -fPIC")
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3")
+# Set compiler flags for all targets
+add_compile_options(-Wall -Wextra -O3 -Wformat=2 -Wmissing-format-attribute -fstack-protector-strong -Wundef -Wmissing-format-attribute
+        -fdiagnostics-color=always -Wstrict-prototypes -Wunreachable-code -Wchar-subscripts -Wwrite-strings -Wpointer-arith -Wbad-function-cast
+        -Wcast-align -Werror=format-security -Werror=implicit-function-declaration -Wno-sign-compare -Wno-format-nonliteral -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3)
+
+add_link_options(-Wl,--no-add-needed -Wl,--as-needed -Wl,-z,relro,-z,now)
 
 add_library(cotp SHARED ${SOURCE_FILES})
 
-target_link_libraries(cotp ${GCRYPT_LIBRARIES} ${BASEENCODE_LIBRARIES})
+target_link_libraries(cotp ${GCRYPT_LIBRARIES})
 
-set_target_properties(cotp PROPERTIES VERSION ${BUILD_VERSION} SOVERSION ${BUILD_MAJOR}${BUILD_MINOR})
+set_target_properties(cotp PROPERTIES VERSION ${CMAKE_PROJECT_VERSION} SOVERSION ${CMAKE_PROJECT_VERSION_MAJOR})
 
 set(COTP_LIB_DIR "${CMAKE_INSTALL_LIBDIR}")
 set(COTP_INC_DIR "${CMAKE_INSTALL_INCLUDEDIR}")

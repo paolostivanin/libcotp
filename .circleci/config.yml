@@ -12,6 +12,8 @@ jobs:
             mkdir build && cd "$_"
             cmake -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_TESTING=ON ..
             make && make install
+            ./tests/test_base32encode
+            ./tests/test_base32decode
             ./tests/test_cotp
 
   ubuntu:
@@ -25,6 +27,8 @@ jobs:
             mkdir build && cd "$_"
             cmake -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_TESTING=ON ..
             make && make install
+            ./tests/test_base32encode
+            ./tests/test_base32decode
             ./tests/test_cotp
 
 workflows:
@@ -33,4 +37,3 @@ workflows:
     jobs:
       - debian
       - ubuntu
-
