@@ -6,6 +6,9 @@
 #define SHA256 GCRY_MD_SHA256
 #define SHA512 GCRY_MD_SHA512
 
+#define MIN_DIGTS 4
+#define MAX_DIGITS 10
+
 typedef enum cotp_error {
     NO_ERROR = 0,
     VALID,

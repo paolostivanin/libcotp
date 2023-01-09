@@ -67,7 +67,7 @@ base32_encode (const uint8_t *user_data,
     }
 
     for (int i = 0, j = 0; i < user_data_chars;) {
-        uint64_t first_octet = i < user_data_chars ? user_data[i++] : 0;
+        uint64_t first_octet = user_data[i++];
         uint64_t second_octet = i < user_data_chars ? user_data[i++] : 0;
         uint64_t third_octet = i < user_data_chars ? user_data[i++] : 0;
         uint64_t fourth_octet = i < user_data_chars ? user_data[i++] : 0;
