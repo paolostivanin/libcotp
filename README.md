@@ -7,7 +7,6 @@
 C library that generates TOTP and HOTP according to [RFC-6238](https://tools.ietf.org/html/rfc6238)
 
 ## Requirements
-- [libbaseencode](https://github.com/paolostivanin/libbaseencode)
 - GCC/Clang and CMake to build the library
 - libgcrypt
 
@@ -32,10 +31,6 @@ char *hotp = get_hotp (const char *base32_encoded_secret, long counter, int digi
 free (hotp);
 
 char *get_totp_at (const char *base32_encoded_secret, long target_date, int digits, int algo, cotp_error_t *err)
-
-int is_valid = totp_verify (const har *base32_encoded_secret, const char *totp, int digits, int period, int algo, cotp_error_t *err);
-
-int is_valid = hotp_verify (const char *base32_encoded_secret, long counter, digits, char *hotp, int algo, cotp_error_t *err);
 ```
 
 where:
@@ -47,15 +42,27 @@ The format of the secret can either be `hxdm vjec jjws` or `HXDMVJECJJWS`. In th
 - `target_date` is the target date specified as the unix epoch format in seconds
 - `algo` is either `SHA1`, `SHA256` or `SHA512`
 
-## Errors
-`get_totp`, `get_hotp` and `get_totp_at` return `NULL` if an error occurs and `err` is set accordingly. The following errors are currently supported:
+## Return values
+`get_totp`, `get_hotp` and `get_totp_at` return `NULL` if an error occurs and `err` is set to one of the following values:
+
+Errors:
 - `GCRYPT_VERSION_MISMATCH`, set if the installed Gcrypt library is too old
 - `INVALID_B32_INPUT`, set if the given input is not valid base32 text
 - `INVALID_ALGO`, set if the given algo is not supported by the library
 - `INVALID_PERIOD`, set if `period` is `<= 0` or `> 120` seconds
-- `INVALID_DIGITS`, set if `digits` is `< 3` or `> 10`
+- `INVALID_DIGITS`, set if `digits` is `< 4` or `> 10`
+- `MEMORY_ALLOCATION_ERROR`, set if an error happened during memory allocation
+- `INVALID_USER_INPUT`, set if the given input is not valid
+- `INVALID_COUNTER`, set if `counter` is `< 0`
+- `EMPTY_STRING`, set if the given input is an empty string
 
-`totp_verify` and `hotp_verify` can return, in addition to one of the previous code, also the error `INVALID_OTP` if the given OTP doesn't match the computed one.
+All good:
+- `NO_ERROR`, set if no error occurred
+- `VALID`, set if the given OTP is valid
+
+The function `otp_to_int`:
+* returns `-1` if an error occurs and sets `err` to `INVALID_USER_INPUT`.
+* warns the user if the leading zero is missing. For example, since the otp string `"012345"` **can't** be returned as the integer `012345` (because it would be interpreted as octal number), the function returns `12345` and sets `err` to `MISSING_LEADING_ZERO`)
 
 In case of success, the value returned by `get_totp`, `get_hotp` and `get_totp_at` **must be freed** once no longer needed.
 

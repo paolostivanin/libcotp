@@ -162,10 +162,12 @@ get_steam_totp_at (const char   *secret,
 }
 
 
-int64_t otp_to_int (const char   *otp,
-                    cotp_error_t *err_code)
+int64_t
+otp_to_int (const char   *otp,
+            cotp_error_t *err_code)
 {
-    if (strlen (otp) < 6 || strlen (otp) > 10) {
+    size_t len = strlen (otp);
+    if (len < MIN_DIGTS || len > MAX_DIGITS) {
         *err_code = INVALID_USER_INPUT;
         return -1;
     }
@@ -341,7 +343,7 @@ check_period (int period)
 static int
 check_otp_len (int digits_length)
 {
-    return (digits_length < 3 || digits_length > 10) ? INVALID_DIGITS : VALID;
+    return (digits_length < MIN_DIGTS || digits_length > MAX_DIGITS) ? INVALID_DIGITS : VALID;
 }
 
 

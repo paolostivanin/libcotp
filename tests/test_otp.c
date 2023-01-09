@@ -287,7 +287,7 @@ Test(totp_int, test_err_invalid_input) {
     char *K_base32 = base32_encode ((const uchar *)K, strlen(K)+1, &cotp_err);
 
     cotp_error_t err;
-    int64_t totp = otp_to_int ("1024", &err);
+    int64_t totp = otp_to_int ("124", &err);
     cr_expect_eq (err, INVALID_USER_INPUT, "Expected %d to be equal to %d\n", err, INVALID_USER_INPUT);
     cr_expect_eq (totp, -1, "Expected %ld to be equal to %d\n", totp, -1);
 
