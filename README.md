@@ -58,7 +58,6 @@ Errors:
 - `MEMORY_ALLOCATION_ERROR`, set if an error happened during memory allocation
 - `INVALID_USER_INPUT`, set if the given input is not valid
 - `INVALID_COUNTER`, set if `counter` is `< 0`
-- `EMPTY_STRING`, set if the given input is an empty string
 
 All good:
 - `NO_ERROR`, set if no error occurred
@@ -70,3 +69,33 @@ The function `otp_to_int`:
 
 In case of success, the value returned by `get_totp`, `get_hotp`, `get_totp_at` and `get_steam_totp` **must be freed** once no longer needed.
 
+# Base32 encoding and decoding
+Since release 2.0.0, libbaseencode has been merged with libcotp. This means that you can now use base32 functions by just including `cotp.h`:
+
+```
+char    *base32_encode     (const uchar  *user_data,
+                            size_t        data_len,
+                            cotp_error_t *err_code);
+
+uchar   *base32_decode     (const char   *user_data,
+                            size_t        data_len,
+                            cotp_error_t *err_code);
+```
+
+where:
+- `user_data` is the data to be encoded/decoded
+- `data_len` is the length of the data to be encoded/decoded
+- `err_code` is where the error is stored
+
+`base32_encode` returns `NULL` if an error occurs and `err_code` is set to one of the following values:
+  - `INVALID_USER_INPUT`, set if the given input is not valid
+  - `MEMORY_ALLOCATION_ERROR`, set if an error happened during memory allocation
+  - `INVALID_USER_INPUT`, set if the given input is not valid
+
+`base32_decode` returns `NULL` if an error occurs and `err_code` is set to one of the following values:
+- `INVALID_USER_INPUT`, set if the given input is not valid
+- `MEMORY_ALLOCATION_ERROR`, set if an error happened during memory allocation
+- `INVALID_B32_INPUT`, set if the given input is not valid base32 text
+- `INVALID_USER_INPUT`, set if the given input is not valid
+
+Both functions return and empty string if the input is an empty string. In such a case, `err` is set to `EMPTY_STRING`.
