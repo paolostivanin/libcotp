@@ -27,26 +27,22 @@ char *totp        = get_totp       (const char   *base32_encoded_secret,
                                     int           period,
                                     int           algo,
                                     cotp_error_t *err);
-free (totp);
 
 char *steam_totp  = get_steam_totp (const char   *secret,
                                     int           period,
                                     cotp_error_t *err);
-free (steam_totp);
 
 char *hotp        = get_hotp       (const char   *base32_encoded_secret,
                                     long          counter,
                                     int           digits,
                                     int           algo,
                                     cotp_error_t *err);
-free (hotp);
 
 char *totp_at     = get_totp_at    (const char   *base32_encoded_secret,
                                     long          target_date,
                                     int           digits,
                                     int           algo,
                                     cotp_error_t *err);
-free (totp_at);
 
 int64_t otp_i     = otp_to_int     (const char   *otp,
                                     cotp_error_t *err_code);
