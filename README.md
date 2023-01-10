@@ -22,19 +22,34 @@ $ make
 
 ## How To Use It
 ```
-char *totp = get_totp (const char *base32_encoded_secret, int digits, int period, int algo, cotp_error_t *err);
+char *totp        = get_totp       (const char   *base32_encoded_secret,
+                                    int           digits,
+                                    int           period,
+                                    int           algo,
+                                    cotp_error_t *err);
 free (totp);
 
-char *steam_totp = get_steam_totp (const char *secret, int period, cotp_error_t *err);
+char *steam_totp  = get_steam_totp (const char   *secret,
+                                    int           period,
+                                    cotp_error_t *err);
 free (steam_totp);
 
-char *hotp = get_hotp (const char *base32_encoded_secret, long counter, int digits, int algo, cotp_error_t *err);
+char *hotp        = get_hotp       (const char   *base32_encoded_secret,
+                                    long          counter,
+                                    int           digits,
+                                    int           algo,
+                                    cotp_error_t *err);
 free (hotp);
 
-char *totp_at = get_totp_at (const char *base32_encoded_secret, long target_date, int digits, int algo, cotp_error_t *err);
+char *totp_at     = get_totp_at    (const char   *base32_encoded_secret,
+                                    long          target_date,
+                                    int           digits,
+                                    int           algo,
+                                    cotp_error_t *err);
 free (totp_at);
 
-int64_t otp_to_int (const char *otp, cotp_error_t *err_code);
+int64_t otp_i     = otp_to_int     (const char   *otp,
+                                    cotp_error_t *err_code);
 ```
 
 where:
@@ -43,7 +58,7 @@ The format of the secret can either be `hxdm vjec jjws` or `HXDMVJECJJWS`. In th
 - `digits` is between `3` and `10` inclusive
 - `period` is between `1` and `120` inclusive
 - `counter` is a value decided with the server
-- `target_date` is the target date specified as the unix epoch format in seconds
+- `target_date` is the target date specified as the **unix epoch format in seconds**
 - `algo` is either `SHA1`, `SHA256` or `SHA512`
 
 ## Return values
@@ -73,13 +88,13 @@ In case of success, the value returned by `get_totp`, `get_hotp`, `get_totp_at` 
 Since release 2.0.0, libbaseencode has been merged with libcotp. This means that you can now use base32 functions by just including `cotp.h`:
 
 ```
-char    *base32_encode     (const uchar  *user_data,
-                            size_t        data_len,
-                            cotp_error_t *err_code);
+char  *base32_encode (const uchar  *user_data,
+                      size_t        data_len,
+                      cotp_error_t *err_code);
 
-uchar   *base32_decode     (const char   *user_data,
-                            size_t        data_len,
-                            cotp_error_t *err_code);
+uchar *base32_decode (const char   *user_data,
+                      size_t        data_len,
+                      cotp_error_t *err_code);
 ```
 
 where:
