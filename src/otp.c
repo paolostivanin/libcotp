@@ -158,6 +158,8 @@ get_steam_totp_at (const char   *secret,
 
     char *totp = get_steam_code (hmac);
 
+    *err_code = NO_ERROR;
+
     free(hmac);
 
     return totp;
@@ -176,6 +178,8 @@ otp_to_int (const char   *otp,
 
     if (otp[0] == '0') {
         *err_code = MISSING_LEADING_ZERO;
+    } else {
+        *err_code = NO_ERROR;
     }
 
     return strtoll (otp, NULL, 10);
