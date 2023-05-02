@@ -102,6 +102,8 @@ get_totp_at (const char   *secret,
         *err_code = err;
         return NULL;
     }
+  
+    *err_code = NO_ERROR;
 
     return totp;
 }
