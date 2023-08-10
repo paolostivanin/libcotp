@@ -8,6 +8,14 @@ include(GNUInstallDirs)
 find_package(PkgConfig REQUIRED)
 find_package(Gcrypt 1.8.0 REQUIRED)
 
+option(LIBCOTP_SHARED "Build as a shared library" ON)
+
+if (LIBCOTP_SHARED)
+  set(SHARED_OR_STATIC SHARED)
+else()
+  set(SHARED_OR_STATIC STATIC)
+endif()
+
 include_directories(${GCRYPT_INCLUDE_DIR} ${BASEENCODE_INCLUDE_DIRS})
 
 link_directories(${GCRYPT_LIBRARY_DIRS} ${BASEENCODE_LIBRARY_DIRS})
@@ -32,7 +40,7 @@ add_compile_options(-Wall -Wextra -O3 -Wformat=2 -Wmissing-format-attribute -fst
 
 add_link_options(-Wl,--no-add-needed -Wl,--as-needed -Wl,-z,relro,-z,now)
 
-add_library(cotp SHARED ${SOURCE_FILES})
+add_library(cotp ${SHARED_OR_STATIC} ${SOURCE_FILES})
 
 target_link_libraries(cotp ${GCRYPT_LIBRARIES})
 
