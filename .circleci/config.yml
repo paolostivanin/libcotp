@@ -8,7 +8,7 @@ jobs:
       - checkout
       - run:
           command: |
-            apt update && apt -y install git gcc clang cmake libcriterion-dev libbaseencode-dev libgcrypt20-dev
+            apt update && apt -y install git gcc clang cmake libcriterion-dev libgcrypt20-dev
             mkdir build && cd "$_"
             cmake -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_TESTING=ON ..
             make && make install
@@ -23,7 +23,7 @@ jobs:
       - checkout
       - run:
           command: |
-            apt update && apt -y install git gcc clang cmake libcriterion-dev libbaseencode-dev libgcrypt20-dev
+            apt update && apt -y install git gcc clang cmake libcriterion-dev libgcrypt20-dev
             mkdir build && cd "$_"
             cmake -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_TESTING=ON ..
             make && make install
