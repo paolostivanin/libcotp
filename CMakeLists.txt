@@ -32,7 +32,7 @@ add_compile_options(-Wall -Wextra -O3 -Wformat=2 -Wmissing-format-attribute -fst
 
 add_link_options(-Wl,--no-add-needed -Wl,--as-needed -Wl,-z,relro,-z,now)
 
-add_library(cotp SHARED ${SOURCE_FILES})
+add_library(cotp ${SOURCE_FILES})
 
 target_link_libraries(cotp ${GCRYPT_LIBRARIES})
 target_include_directories(cotp PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
