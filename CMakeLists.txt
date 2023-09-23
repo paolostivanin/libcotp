@@ -8,6 +8,7 @@ include(GNUInstallDirs)
 find_package(PkgConfig REQUIRED)
 find_package(Gcrypt 1.8.0 REQUIRED)
 
+option(BUILD_SHARED_LIBS "Build libcotp as a shared library" ON)
 option(BUILD_TESTS "Build tests for libcotp" ON)
 
 if (BUILD_TESTS)
