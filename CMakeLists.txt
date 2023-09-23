@@ -35,6 +35,7 @@ add_link_options(-Wl,--no-add-needed -Wl,--as-needed -Wl,-z,relro,-z,now)
 add_library(cotp SHARED ${SOURCE_FILES})
 
 target_link_libraries(cotp ${GCRYPT_LIBRARIES})
+target_include_directories(cotp PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
 set_target_properties(cotp PROPERTIES VERSION ${CMAKE_PROJECT_VERSION} SOVERSION ${CMAKE_PROJECT_VERSION_MAJOR})
 
