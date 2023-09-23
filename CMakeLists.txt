@@ -8,8 +8,12 @@ include(GNUInstallDirs)
 find_package(PkgConfig REQUIRED)
 find_package(Gcrypt 1.8.0 REQUIRED)
 
-enable_testing()
-add_subdirectory(tests)
+option(BUILD_TESTS "Build tests for libcotp" ON)
+
+if (BUILD_TESTS)
+    enable_testing()
+    add_subdirectory(tests)
+endif()
 
 set(CMAKE_C_STANDARD 11)
 
