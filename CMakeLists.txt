@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(cotp VERSION "2.0.1" LANGUAGES "C")
+project(cotp VERSION "2.0.2" LANGUAGES "C")
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
@@ -47,8 +47,6 @@ target_compile_options(cotp PRIVATE
         -Wall -Wextra -O3 -Wformat=2 -Wmissing-format-attribute -fstack-protector-strong -Wundef -Wmissing-format-attribute
         -fdiagnostics-color=always -Wstrict-prototypes -Wunreachable-code -Wchar-subscripts -Wwrite-strings -Wpointer-arith -Wbad-function-cast
         -Wcast-align -Werror=format-security -Werror=implicit-function-declaration -Wno-sign-compare -Wno-format-nonliteral -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3)
-target_link_options(cotp PRIVATE
-        -Wl,--no-add-needed -Wl,--as-needed -Wl,-z,relro,-z,now)
 target_link_directories(cotp PRIVATE
         ${GCRYPT_LIBRARY_DIRS} ${BASEENCODE_LIBRARY_DIRS})
 
