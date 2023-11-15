@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(cotp VERSION "2.0.2" LANGUAGES "C")
+project(cotp VERSION "2.1.0" LANGUAGES "C")
 
 set(CMAKE_C_STANDARD 11)
 
@@ -8,14 +8,36 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 include(GNUInstallDirs)
 
 find_package(PkgConfig REQUIRED)
-find_package(Gcrypt 1.8.0 REQUIRED)
 
 option(BUILD_SHARED_LIBS "Build libcotp as a shared library" ON)
 option(BUILD_TESTS "Build base32 and cotp tests" OFF)
 
-include_directories(${GCRYPT_INCLUDE_DIR} ${BASEENCODE_INCLUDE_DIRS})
+set(HMAC_WRAPPER "gcrypt" CACHE STRING "library to use during hmac computation")
+if("${HMAC_WRAPPER}" STREQUAL "gcrypt")
+    set(HMAC_SOURCE_FILES
+            src/utils/whmac_gcrypt.c
+    )
+    find_package(Gcrypt 1.8.0 REQUIRED)
+    set(HMAC_INCLUDE_DIR ${GCRYPT_INCLUDE_DIR})
+    set(HMAC_LIBRARY_DIRS ${GCRYPT_LIBRARY_DIRS})
+    set(HMAC_LIBRARIES ${GCRYPT_LIBRARIES})
+    message("libcotp will use gcrypt for hmac")
+elseif("${HMAC_WRAPPER}" STREQUAL "openssl")
+    find_package(OpenSSL 3.0.0 REQUIRED)
+    set(HMAC_SOURCE_FILES
+            src/utils/whmac_openssl.c
+    )
+    set(HMAC_INCLUDE_DIR ${OPENSSL_INCLUDE_DIR})
+    set(HMAC_LIBRARY_DIRS ${OPENSSL_LIBRARY_DIRS})
+    set(HMAC_LIBRARIES ${OPENSSL_LIBRARIES})
+    message("libcotp will use openssl for hmac")
+else()
+    message("libcotp can't use ${HMAC_WRAPPER} for hmac")
+endif()
 
-link_directories(${GCRYPT_LIBRARY_DIRS} ${BASEENCODE_LIBRARY_DIRS})
+include_directories(${HMAC_INCLUDE_DIR} ${BASEENCODE_INCLUDE_DIRS})
+
+link_directories(${HMAC_LIBRARY_DIRS} ${BASEENCODE_LIBRARY_DIRS})
 
 if (BUILD_TESTS)
 add_subdirectory(tests)
@@ -26,6 +48,7 @@ set(COTP_HEADERS
         )
 set(SOURCE_FILES
         src/otp.c
+        ${HMAC_SOURCE_FILES}
         src/utils/base32.c
         )
 
@@ -38,19 +61,19 @@ add_link_options(-Wl,--no-add-needed -Wl,--as-needed -Wl,-z,relro,-z,now)
 
 add_library(cotp ${SOURCE_FILES})
 
-target_link_libraries(cotp ${GCRYPT_LIBRARIES})
+target_link_libraries(cotp ${HMAC_LIBRARIES})
 target_include_directories(cotp
         PUBLIC
             ${CMAKE_CURRENT_SOURCE_DIR}/src
         PRIVATE
-            ${GCRYPT_INCLUDE_DIR}
+            ${HMAC_INCLUDE_DIR}
             ${BASEENCODE_INCLUDE_DIRS})
 target_compile_options(cotp PRIVATE
         -Wall -Wextra -O3 -Wformat=2 -Wmissing-format-attribute -fstack-protector-strong -Wundef -Wmissing-format-attribute
         -fdiagnostics-color=always -Wstrict-prototypes -Wunreachable-code -Wchar-subscripts -Wwrite-strings -Wpointer-arith -Wbad-function-cast
         -Wcast-align -Werror=format-security -Werror=implicit-function-declaration -Wno-sign-compare -Wno-format-nonliteral -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3)
 target_link_directories(cotp PRIVATE
-        ${GCRYPT_LIBRARY_DIRS} ${BASEENCODE_LIBRARY_DIRS})
+        ${HMACLIBRARY_DIRS} ${BASEENCODE_LIBRARY_DIRS})
 
 set_target_properties(cotp PROPERTIES VERSION ${CMAKE_PROJECT_VERSION} SOVERSION ${CMAKE_PROJECT_VERSION_MAJOR})
 
