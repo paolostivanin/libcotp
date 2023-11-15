@@ -4,9 +4,9 @@ typedef struct whmac_handle_s whmac_handle_t;
 
 int             whmac_check      (void);
 
-int             whmac_getlen     (int algotype);
-
 whmac_handle_t* whmac_gethandle  (int algo);
+
+size_t          whmac_getlen     (whmac_handle_t* hd);
 
 void            whmac_freehandle (whmac_handle_t *hd);
 
