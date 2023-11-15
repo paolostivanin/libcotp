@@ -212,12 +212,12 @@ Test(totp_generic, test_fail_invalid_b32_input) {
     cr_assert_null (totp);
 }
 
-
+#define MD5 3
 Test(totp_generic, test_fail_invalid_algo) {
     const char *K = "base32secret";
 
     cotp_error_t err;
-    char *totp = get_totp (K, 6, 30, GCRY_MD_MD5, &err);
+    char *totp = get_totp (K, 6, 30, MD5, &err);
 
     cr_expect_eq (err, INVALID_ALGO, "Expected %d to be equal to %d\n", err, INVALID_ALGO);
     cr_assert_null (totp);
