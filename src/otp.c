@@ -205,7 +205,9 @@ normalize_secret (const char *K)
 static char *
 get_steam_code (const unsigned char *hmac)
 {
-    int offset = (hmac[whmac_getlen(SHA1)-1] & 0x0f);
+    whmac_handle_t *hd = whmac_gethandle(SHA1);
+    int offset = (hmac[whmac_getlen(hd)-1] & 0x0f);
+    whmac_freehandle(hd);
 
     // Starting from the offset, take the successive 4 bytes while stripping the topmost bit to prevent it being handled as a signed integer
     int bin_code = ((hmac[offset] & 0x7f) << 24) | ((hmac[offset + 1] & 0xff) << 16) | ((hmac[offset + 2] & 0xff) << 8) | ((hmac[offset + 3] & 0xff));
@@ -231,7 +233,9 @@ truncate (const unsigned char *hmac,
           int            algo)
 {
     // take the lower four bits of the last byte
-    int offset = hmac[whmac_getlen(algo) - 1] & 0x0f;
+    whmac_handle_t *hd = whmac_gethandle(algo);
+    int offset = hmac[whmac_getlen(hd) - 1] & 0x0f;
+    whmac_freehandle(hd);
 
     // Starting from the offset, take the successive 4 bytes while stripping the topmost bit to prevent it being handled as a signed integer
     int bin_code = ((hmac[offset] & 0x7f) << 24) | ((hmac[offset + 1] & 0xff) << 16) | ((hmac[offset + 2] & 0xff) << 8) | ((hmac[offset + 3] & 0xff));
@@ -283,7 +287,7 @@ compute_hmac (const char *K,
     }
     whmac_update (hd, C_reverse_byte_order, sizeof (C_reverse_byte_order));
 
-    size_t dlen = whmac_getlen(algo);
+    size_t dlen = whmac_getlen(hd);
     unsigned char *hmac = malloc (dlen);
     if (hmac == NULL) {
         fprintf (stderr, "Error allocating memory");
