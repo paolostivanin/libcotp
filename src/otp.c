@@ -8,15 +8,16 @@
 
 static char  *normalize_secret (const char  *K);
 
-static char  *get_steam_code   (const uchar *hmac);
+static char  *get_steam_code   (const uchar *hmac,
+                                whmac_handle_t *hd);
 
 static int    truncate         (const uchar *hmac,
                                 int          digits_length,
-                                int          algo);
+                                whmac_handle_t *hd);
 
 static uchar *compute_hmac     (const char  *K,
                                 long         C,
-                                int          algo);
+                                whmac_handle_t *hd);
 
 static char  *finalize         (int          digits_length,
                                 int          tk);
@@ -55,13 +56,20 @@ get_hotp (const char   *secret,
         return NULL;
     }
 
-    unsigned char *hmac = compute_hmac (secret, counter, algo);
+    whmac_handle_t *hd = whmac_gethandle(algo);
+    if (hd == NULL) {
+        fprintf (stderr, "Error while opening the cipher handle.\n");
+        return NULL;
+    }
+    unsigned char *hmac = compute_hmac (secret, counter, hd);
     if (hmac == NULL) {
         *err_code = INVALID_B32_INPUT;
         return NULL;
     }
 
-    int tk = truncate (hmac, digits, algo);
+    int tk = truncate (hmac, digits, hd);
+    whmac_freehandle (hd);
+
     free (hmac);
 
     *err_code = NO_ERROR;
@@ -149,13 +157,20 @@ get_steam_totp_at (const char   *secret,
 
     long timestamp = current_timestamp / period;
 
-    unsigned char *hmac = compute_hmac (secret, timestamp, SHA1);
+    whmac_handle_t *hd = whmac_gethandle(SHA1);
+    if (hd == NULL) {
+        fprintf (stderr, "Error while opening the cipher handle.\n");
+        return NULL;
+    }
+    unsigned char *hmac = compute_hmac (secret, timestamp, hd);
     if (hmac == NULL) {
         *err_code = INVALID_B32_INPUT;
         return NULL;
     }
 
-    char *totp = get_steam_code (hmac);
+    char *totp = get_steam_code (hmac, hd);
+
+    whmac_freehandle (hd);
 
     *err_code = NO_ERROR;
 
@@ -203,11 +218,10 @@ normalize_secret (const char *K)
 
 
 static char *
-get_steam_code (const unsigned char *hmac)
+get_steam_code (const unsigned char *hmac,
+                whmac_handle_t *hd)
 {
-    whmac_handle_t *hd = whmac_gethandle(SHA1);
     int offset = (hmac[whmac_getlen(hd)-1] & 0x0f);
-    whmac_freehandle(hd);
 
     // Starting from the offset, take the successive 4 bytes while stripping the topmost bit to prevent it being handled as a signed integer
     int bin_code = ((hmac[offset] & 0x7f) << 24) | ((hmac[offset + 1] & 0xff) << 16) | ((hmac[offset + 2] & 0xff) << 8) | ((hmac[offset + 3] & 0xff));
@@ -230,12 +244,10 @@ get_steam_code (const unsigned char *hmac)
 static int
 truncate (const unsigned char *hmac,
           int            digits_length,
-          int            algo)
+          whmac_handle_t *hd)
 {
     // take the lower four bits of the last byte
-    whmac_handle_t *hd = whmac_gethandle(algo);
     int offset = hmac[whmac_getlen(hd) - 1] & 0x0f;
-    whmac_freehandle(hd);
 
     // Starting from the offset, take the successive 4 bytes while stripping the topmost bit to prevent it being handled as a signed integer
     int bin_code = ((hmac[offset] & 0x7f) << 24) | ((hmac[offset + 1] & 0xff) << 16) | ((hmac[offset + 2] & 0xff) << 8) | ((hmac[offset + 3] & 0xff));
@@ -250,7 +262,7 @@ truncate (const unsigned char *hmac,
 static unsigned char *
 compute_hmac (const char *K,
               long        C,
-              int         algo)
+              whmac_handle_t *hd)
 {
     size_t secret_len = (size_t)((strlen(K) + 1.6 - 1) / 1.6);
 
@@ -272,17 +284,10 @@ compute_hmac (const char *K,
         C_reverse_byte_order[i] = ((unsigned char *) &C)[j];
     }
 
-    whmac_handle_t *hd = whmac_gethandle(algo);
-    if (hd == NULL) {
-        fprintf (stderr, "Error while opening the cipher handle.\n");
-        free (secret);
-        return NULL;
-    }
     cotp_error_t copterr = whmac_setkey(hd, secret, secret_len);
     if (copterr) {
         fprintf (stderr, "Error while setting the cipher key.\n");
         free (secret);
-        whmac_freehandle (hd);
         return NULL;
     }
     whmac_update (hd, C_reverse_byte_order, sizeof (C_reverse_byte_order));
@@ -292,7 +297,6 @@ compute_hmac (const char *K,
     if (hmac == NULL) {
         fprintf (stderr, "Error allocating memory");
         free (secret);
-        whmac_freehandle (hd);
         return NULL;
     }
 
@@ -300,12 +304,9 @@ compute_hmac (const char *K,
     if (flen < 0) {
         fprintf (stderr, "Error getting digest\n");
         free (secret);
-        whmac_freehandle (hd);
         return NULL;
     }
     free (secret);
-
-    whmac_freehandle (hd);
 
     return hmac;
 }
