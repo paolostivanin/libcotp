@@ -1,10 +1,9 @@
 #pragma once
-#include <gcrypt.h>
 #include <stdint.h>
 
-#define SHA1 GCRY_MD_SHA1
-#define SHA256 GCRY_MD_SHA256
-#define SHA512 GCRY_MD_SHA512
+#define SHA1 0
+#define SHA256 1
+#define SHA512 2
 
 #define MIN_DIGTS 4
 #define MAX_DIGITS 10
@@ -12,7 +11,7 @@
 typedef enum cotp_error {
     NO_ERROR = 0,
     VALID,
-    GCRYPT_VERSION_MISMATCH,
+    WCRYPT_VERSION_MISMATCH,
     INVALID_B32_INPUT,
     INVALID_ALGO,
     INVALID_DIGITS,

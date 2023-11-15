@@ -24,6 +24,7 @@ set(COTP_HEADERS
         )
 set(SOURCE_FILES
         src/otp.c
+        src/utils/whmac_gcrypt.c
         src/utils/base32.c
         )
 
