@@ -47,6 +47,7 @@ whmac_gethandle (int algo)
     if (gpg_err == 0) {
         whmac_handle = calloc (1, sizeof(*whmac_handle));
         if (whmac_handle == NULL) {
+            gcry_md_close (hd);
             return NULL;
         }
         memcpy (&whmac_handle->hd, &hd, sizeof(hd));

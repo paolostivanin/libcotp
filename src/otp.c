@@ -65,6 +65,7 @@ get_hotp (const char   *secret,
     unsigned char *hmac = compute_hmac (secret, counter, hd);
     if (hmac == NULL) {
         *err_code = WHMAC_ERROR;
+        whmac_freehandle (hd);
         return NULL;
     }
 
@@ -154,16 +155,15 @@ get_steam_totp_at (const char   *secret,
         return NULL;
     }
 
-    long timestamp = current_timestamp / period;
-
-    whmac_handle_t *hd = whmac_gethandle(SHA1);
+    whmac_handle_t *hd = whmac_gethandle (SHA1);
     if (hd == NULL) {
         fprintf (stderr, "Error while opening the cipher handle.\n");
         return NULL;
     }
-    unsigned char *hmac = compute_hmac (secret, timestamp, hd);
+    unsigned char *hmac = compute_hmac (secret, current_timestamp / period, hd);
     if (hmac == NULL) {
         *err_code = WHMAC_ERROR;
+        whmac_freehandle (hd);
         return NULL;
     }
 
@@ -292,7 +292,7 @@ compute_hmac (const char *K,
     whmac_update (hd, C_reverse_byte_order, sizeof(C_reverse_byte_order));
 
     size_t dlen = whmac_getlen (hd);
-    unsigned char *hmac = malloc (dlen);
+    unsigned char *hmac = calloc (dlen, 1);
     if (hmac == NULL) {
         fprintf (stderr, "Error allocating memory");
         free (secret);
@@ -302,6 +302,7 @@ compute_hmac (const char *K,
     ssize_t flen = whmac_finalize (hd, hmac, dlen);
     if (flen < 0) {
         fprintf (stderr, "Error getting digest\n");
+        free (hmac);
         free (secret);
         return NULL;
     }
