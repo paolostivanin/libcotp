@@ -35,29 +35,27 @@ else()
     message("libcotp can't use ${HMAC_WRAPPER} for hmac")
 endif()
 
-include_directories(${HMAC_INCLUDE_DIR} ${BASEENCODE_INCLUDE_DIRS})
-
-link_directories(${HMAC_LIBRARY_DIRS} ${BASEENCODE_LIBRARY_DIRS})
+include_directories(${HMAC_INCLUDE_DIR})
+link_directories(${HMAC_LIBRARY_DIRS})
 
 if (BUILD_TESTS)
-add_subdirectory(tests)
+    add_subdirectory(tests)
 endif ()
 
 set(COTP_HEADERS
         src/cotp.h
-        )
+)
+
 set(SOURCE_FILES
         src/otp.c
         ${HMAC_SOURCE_FILES}
         src/utils/base32.c
-        )
+)
 
 # Set compiler flags for all targets
 add_compile_options(-Wall -Wextra -O3 -Wformat=2 -Wmissing-format-attribute -fstack-protector-strong -Wundef -Wmissing-format-attribute
         -fdiagnostics-color=always -Wstrict-prototypes -Wunreachable-code -Wchar-subscripts -Wwrite-strings -Wpointer-arith -Wbad-function-cast
         -Wcast-align -Werror=format-security -Werror=implicit-function-declaration -Wno-sign-compare -Wno-format-nonliteral -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3)
-
-add_link_options(-Wl,--no-add-needed -Wl,--as-needed -Wl,-z,relro,-z,now)
 
 add_library(cotp ${SOURCE_FILES})
 
@@ -66,14 +64,13 @@ target_include_directories(cotp
         PUBLIC
             ${CMAKE_CURRENT_SOURCE_DIR}/src
         PRIVATE
-            ${HMAC_INCLUDE_DIR}
-            ${BASEENCODE_INCLUDE_DIRS})
+            ${HMAC_INCLUDE_DIR})
 target_compile_options(cotp PRIVATE
         -Wall -Wextra -O3 -Wformat=2 -Wmissing-format-attribute -fstack-protector-strong -Wundef -Wmissing-format-attribute
         -fdiagnostics-color=always -Wstrict-prototypes -Wunreachable-code -Wchar-subscripts -Wwrite-strings -Wpointer-arith -Wbad-function-cast
         -Wcast-align -Werror=format-security -Werror=implicit-function-declaration -Wno-sign-compare -Wno-format-nonliteral -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3)
 target_link_directories(cotp PRIVATE
-        ${HMACLIBRARY_DIRS} ${BASEENCODE_LIBRARY_DIRS})
+        ${HMACLIBRARY_DIRS})
 
 set_target_properties(cotp PROPERTIES VERSION ${CMAKE_PROJECT_VERSION} SOVERSION ${CMAKE_PROJECT_VERSION_MAJOR})
 
