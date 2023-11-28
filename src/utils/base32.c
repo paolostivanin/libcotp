@@ -3,24 +3,27 @@
 #include <string.h>
 #include "../cotp.h"
 
+#define FALSE                       0
+#define TRUE                   !FALSE
 #define BITS_PER_BYTE               8
 #define BITS_PER_B32_BLOCK          5
 
 // 64 MB should be more than enough
 #define MAX_ENCODE_INPUT_LEN        (64*1024*1024)
+
 // if 64 MB of data is encoded than it should be also possible to decode it. That's why a bigger input is allowed for decoding
 #define MAX_DECODE_BASE32_INPUT_LEN ((MAX_ENCODE_INPUT_LEN * 8 + 4) / 5)
 
-static int          is_valid_b32_input (const char    *user_data);
+static int           is_valid_b32_input (const char    *user_data);
 
-static int          get_char_index     (uint8_t        c);
+static int           get_char_index     (uint8_t        c);
 
-static cotp_error_t check_input        (const uint8_t *user_data,
-                                        size_t         data_len,
-                                        int            max_len);
+static cotp_error_t  check_input        (const uint8_t *user_data,
+                                         size_t         data_len,
+                                         int32_t        max_len);
 
-static int          strip_char         (char          *str,
-                                        char           strip);
+static int           strip_char         (char          *str,
+                                         char           strip);
 
 static const uint8_t b32_alphabet[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
 
@@ -33,6 +36,7 @@ base32_encode (const uint8_t *user_data,
 {
     cotp_error_t error = check_input (user_data, data_len, MAX_ENCODE_INPUT_LEN);
     if (error == EMPTY_STRING) {
+        *err_code = error;
         return strdup ("");
     }
     if (error != NO_ERROR) {
@@ -42,15 +46,17 @@ base32_encode (const uint8_t *user_data,
 
     size_t user_data_chars = 0, total_bits = 0;
     int num_of_equals = 0;
+    int null_terminated = FALSE;
+    if (strlen ((char *)user_data) == data_len - 1) {
+        // the user might give the input with the null byte, we need to check for that
+        null_terminated = TRUE;
+    }
     for (int i = 0; i < data_len; i++) {
-        // As it's not known whether data_len is with or without the +1 for the null byte, a manual check is required.
-        // Check for null byte only at the end of the user given length, otherwise issue#23 may occur
-        if (user_data[i] == '\0' && i == data_len-1) {
+        if (null_terminated == TRUE && user_data[i] == '\0' && i == data_len-1) {
             break;
-        } else {
-            total_bits += 8;
-            user_data_chars += 1;
         }
+        total_bits += 8;
+        user_data_chars += 1;
     }
     switch (total_bits % 40) {
         case 8:  num_of_equals = 6; break;
@@ -110,6 +116,7 @@ base32_decode (const char   *user_data_untrimmed,
 {
     cotp_error_t error = check_input ((uint8_t *)user_data_untrimmed, data_len, MAX_DECODE_BASE32_INPUT_LEN);
     if (error == EMPTY_STRING) {
+        *err_code = error;
         return (uint8_t *)strdup ("");
     }
     if (error != NO_ERROR) {
@@ -162,7 +169,7 @@ base32_decode (const char   *user_data_untrimmed,
             bits_left += BITS_PER_BYTE - BITS_PER_B32_BLOCK;
         }
     }
-    decoded_data[output_length] = '\0';
+    decoded_data[output_length-1] = '\0';
 
     free (user_data);
 
@@ -232,14 +239,14 @@ strip_char (char *str,
 
 static cotp_error_t
 check_input (const uint8_t *user_data,
-             size_t               data_len,
-             int                  max_len)
+             size_t         data_len,
+             int32_t        max_len)
 {
-    if (!user_data || (data_len == 0 && user_data[0] != '\0') || (data_len > (size_t)max_len)) {
+    if (!user_data || data_len > max_len) {
         return INVALID_USER_INPUT;
     }
 
-    if (user_data[0] == '\0') {
+    if (data_len == 0) {
         return EMPTY_STRING;
     }
 
