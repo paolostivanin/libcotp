@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.16)
 project(cotp VERSION "2.0.2" LANGUAGES "C")
 
+set(CMAKE_C_STANDARD 11)
+
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
 include(GNUInstallDirs)
@@ -9,15 +11,15 @@ find_package(PkgConfig REQUIRED)
 find_package(Gcrypt 1.8.0 REQUIRED)
 
 option(BUILD_SHARED_LIBS "Build libcotp as a shared library" ON)
+option(BUILD_TESTS "Build base32 and cotp tests" OFF)
 
 include_directories(${GCRYPT_INCLUDE_DIR} ${BASEENCODE_INCLUDE_DIRS})
 
 link_directories(${GCRYPT_LIBRARY_DIRS} ${BASEENCODE_LIBRARY_DIRS})
 
-enable_testing()
+if (BUILD_TESTS)
 add_subdirectory(tests)
-
-set(CMAKE_C_STANDARD 11)
+endif ()
 
 set(COTP_HEADERS
         src/cotp.h

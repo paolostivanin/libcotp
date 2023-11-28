@@ -10,7 +10,7 @@ jobs:
           command: |
             apt update && apt -y install git gcc clang cmake libcriterion-dev libgcrypt20-dev
             mkdir build && cd "$_"
-            cmake -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_TESTING=ON ..
+            cmake -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_TESTS=ON ..
             make && make install
             ./tests/test_base32encode
             ./tests/test_base32decode
@@ -25,7 +25,7 @@ jobs:
           command: |
             apt update && apt -y install git gcc clang cmake libcriterion-dev libgcrypt20-dev
             mkdir build && cd "$_"
-            cmake -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_TESTING=ON ..
+            cmake -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_TESTS=ON ..
             make && make install
             ./tests/test_base32encode
             ./tests/test_base32decode

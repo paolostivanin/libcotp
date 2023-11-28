@@ -2,7 +2,6 @@
 #include <criterion/criterion.h>
 #include "../src/cotp.h"
 
-
 Test(b32_decode_test, b32_all_chars) {
     cotp_error_t err;
     const char *k = "IFCEMRZUGEZSDQVDEQSSMJRIFAXT6XWDU7B2SKS3LURSSLJOFR6DYPRL";
@@ -89,6 +88,7 @@ Test(b32_decode_test, b32_decode_input_whitespaces) {
     cr_expect_str_eq (dk, expected, "%s");
 }
 
+
 Test(b32_decode_test, b32_decode_encode_null) {
     const char* token = "LLFTSZYMUGKHEDQBAAACAZAMUFKKVFLS";
     cotp_error_t err;
@@ -102,3 +102,27 @@ Test(b32_decode_test, b32_decode_encode_null) {
     cr_expect_str_eq (result, token, "%s");
 }
 
+
+Test(b32_decode_test, b32_decode_empty_string) {
+    cotp_error_t err;
+
+    uint8_t* binary = base32_decode ("", 0, &err);
+    cr_expect_eq (err, EMPTY_STRING);
+    cr_expect_str_eq ((char *)binary, "", "%s");
+
+    free (binary);
+}
+
+
+Test(b32_decode_test, byte_array_all_zeroes) {
+    cotp_error_t err;
+    const char *token = "AAAAAAA=";
+
+    uint8_t* binary = base32_decode (token, strlen (token) + 1, &err);
+    cr_expect_eq (err, NO_ERROR);
+    for (int i=0;i<4;i++) {
+        cr_expect_eq (binary[i], 0);
+    }
+
+    free (binary);
+}
