@@ -1,4 +1,3 @@
-#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include "../cotp.h"
@@ -14,18 +13,15 @@
 // if 64 MB of data is encoded than it should be also possible to decode it. That's why a bigger input is allowed for decoding
 #define MAX_DECODE_BASE32_INPUT_LEN ((MAX_ENCODE_INPUT_LEN * 8 + 4) / 5)
 
-static int           is_valid_b32_input (const char    *user_data);
+const uint8_t b32_alphabet[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
 
-static int           get_char_index     (uint8_t        c);
+static int           get_char_index (uint8_t        c);
 
-static cotp_error_t  check_input        (const uint8_t *user_data,
-                                         size_t         data_len,
-                                         int32_t        max_len);
+static cotp_error_t  check_input    (const uint8_t *user_data,
+                                     size_t         data_len,
+                                     int32_t        max_len);
 
-static int           strip_char         (char          *str,
-                                         char           strip);
-
-static const uint8_t b32_alphabet[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+static int           strip_char     (char          *str);
 
 
 // The encoding process represents 40-bit groups of input bits as output strings of 8 encoded characters. The input data must be null terminated.
@@ -72,30 +68,16 @@ base32_encode (const uint8_t *user_data,
         return NULL;
     }
 
-    for (int i = 0, j = 0; i < user_data_chars;) {
-        uint64_t first_octet = user_data[i++];
-        uint64_t second_octet = i < user_data_chars ? user_data[i++] : 0;
-        uint64_t third_octet = i < user_data_chars ? user_data[i++] : 0;
-        uint64_t fourth_octet = i < user_data_chars ? user_data[i++] : 0;
-        uint64_t fifth_octet = i < user_data_chars ? user_data[i++] : 0;
-        uint64_t quintuple =
-                ((first_octet >> 3) << 35) +
-                ((((first_octet & 0x7) << 2) | (second_octet >> 6)) << 30) +
-                (((second_octet & 0x3F) >> 1) << 25) +
-                ((((second_octet & 0x01) << 4) | (third_octet >> 4)) << 20) +
-                ((((third_octet & 0xF) << 1) | (fourth_octet >> 7)) << 15) +
-                (((fourth_octet & 0x7F) >> 2) << 10) +
-                ((((fourth_octet & 0x3) << 3) | (fifth_octet >> 5)) << 5) +
-                (fifth_octet & 0x1F);
+    for (int i = 0, j = 0; i < user_data_chars; i += 5) {
+        uint64_t quintuple = 0;
 
-        encoded_data[j++] = (char)b32_alphabet[(quintuple >> 35) & 0x1F];
-        encoded_data[j++] = (char)b32_alphabet[(quintuple >> 30) & 0x1F];
-        encoded_data[j++] = (char)b32_alphabet[(quintuple >> 25) & 0x1F];
-        encoded_data[j++] = (char)b32_alphabet[(quintuple >> 20) & 0x1F];
-        encoded_data[j++] = (char)b32_alphabet[(quintuple >> 15) & 0x1F];
-        encoded_data[j++] = (char)b32_alphabet[(quintuple >> 10) & 0x1F];
-        encoded_data[j++] = (char)b32_alphabet[(quintuple >> 5) & 0x1F];
-        encoded_data[j++] = (char)b32_alphabet[(quintuple >> 0) & 0x1F];
+        for (int k = 0; k < 5; k++) {
+            quintuple = (quintuple << 8) | (i + k < user_data_chars ? user_data[i + k] : 0);
+        }
+
+        for (int shift = 35; shift >= 0; shift -= 5) {
+            encoded_data[j++] = (char)b32_alphabet[(quintuple >> shift) & 0x1F];
+        }
     }
 
     for (int i = 0; i < num_of_equals; i++) {
@@ -129,9 +111,9 @@ base32_decode (const char   *user_data_untrimmed,
         *err_code = MEMORY_ALLOCATION_ERROR;
         return NULL;
     }
-    data_len -= strip_char(user_data, ' ');
+    data_len -= strip_char (user_data);
 
-    if (!is_valid_b32_input(user_data)) {
+    if (!is_str_valid_b32(user_data)) {
         free (user_data);
         *err_code = INVALID_B32_INPUT;
         return NULL;
@@ -179,20 +161,17 @@ base32_decode (const char   *user_data_untrimmed,
 }
 
 
-static int
-is_valid_b32_input (const char *user_data)
+int
+is_str_valid_b32 (const char *user_data)
 {
-    // Create a lookup table for ASCII characters
-    uint8_t table[128];
-    memset (table, 0, sizeof (table));
-    for (size_t i = 0; i < sizeof (b32_alphabet); i++) {
-        table[b32_alphabet[i]] = 1;
+    uint8_t table[128] = {0};
+    for (const uint8_t *p = b32_alphabet; *p; p++) {
+        table[*p] = 1;
     }
     table['='] = 1;
 
-    const char *p;
-    for (p = user_data; *p; p++) {
-        if (!table[*(uint8_t *)p]) {
+    for (; *user_data; user_data++) {
+        if (!table[(uint8_t)*user_data]) {
             return 0;
         }
     }
@@ -203,7 +182,7 @@ is_valid_b32_input (const char *user_data)
 static int
 get_char_index (uint8_t c)
 {
-    for (int i = 0; i < sizeof (b32_alphabet); i++) {
+    for (int i = 0; i < sizeof(b32_alphabet); i++) {
         if (b32_alphabet[i] == c) {
             return i;
         }
@@ -213,17 +192,13 @@ get_char_index (uint8_t c)
 
 
 static int
-strip_char (char *str,
-            char  strip)
+strip_char (char *str)
 {
+    const char strip = ' ';
+    uint8_t table[128] = {0};
+    table[(uint8_t)strip] = 1;
+
     int found = 0;
-
-    // Create a lookup table for ASCII characters
-    uint8_t table[128];
-    memset (table, 0, sizeof (table));
-    table[(int)strip] = 1;
-
-    // Iterate through the string using pointers
     char *p, *q;
     for (q = p = str; *p; p++) {
         if (!table[*(uint8_t *)p]) {
