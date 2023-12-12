@@ -116,6 +116,6 @@ where:
 - `INVALID_B32_INPUT`, set if the given input is not valid base32 text
 - `INVALID_USER_INPUT`, set if the given input is not valid
 
-`is_str_valid_b32` returns `1` if `user_data` is a valid base32 encoded string, `0` otherwise.
-
 Both functions return and empty string if the input is an empty string. In such a case, `err` is set to `EMPTY_STRING`.
+
+`is_str_valid_b32` returns `1` if `user_data` is a valid base32 encoded string, `0` otherwise.
