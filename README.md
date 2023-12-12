@@ -96,6 +96,8 @@ char  *base32_encode (const uchar  *user_data,
 uchar *base32_decode (const char   *user_data,
                       size_t        data_len,
                       cotp_error_t *err_code);
+
+int    is_str_valid_b32 (const char   *user_data);
 ```
 
 where:
@@ -113,5 +115,7 @@ where:
 - `MEMORY_ALLOCATION_ERROR`, set if an error happened during memory allocation
 - `INVALID_B32_INPUT`, set if the given input is not valid base32 text
 - `INVALID_USER_INPUT`, set if the given input is not valid
+
+`is_str_valid_b32` returns `1` if `user_data` is a valid base32 encoded string, `0` otherwise.
 
 Both functions return and empty string if the input is an empty string. In such a case, `err` is set to `EMPTY_STRING`.
