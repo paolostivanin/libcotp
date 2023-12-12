@@ -30,6 +30,8 @@ typedef unsigned char uchar;
 extern "C" {
 #endif
 
+extern const uint8_t b32_alphabet[];
+
 char    *base32_encode     (const uchar  *user_data,
                             size_t        data_len,
                             cotp_error_t *err_code);
@@ -37,6 +39,8 @@ char    *base32_encode     (const uchar  *user_data,
 uchar   *base32_decode     (const char   *user_data_untrimmed,
                             size_t        data_len,
                             cotp_error_t *err_code);
+
+int      is_str_valid_b32  (const char   *user_data);
 
 char    *get_hotp          (const char   *base32_encoded_secret,
                             long          counter,
