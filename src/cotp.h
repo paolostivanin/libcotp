@@ -1,5 +1,6 @@
 #pragma once
 #include <stdint.h>
+#include <stdbool.h>
 
 #define SHA1 0
 #define SHA256 1
@@ -40,7 +41,7 @@ uchar   *base32_decode     (const char   *user_data_untrimmed,
                             size_t        data_len,
                             cotp_error_t *err_code);
 
-int      is_str_valid_b32  (const char   *user_data);
+bool     is_string_valid_b32 (const char *user_data);
 
 char    *get_hotp          (const char   *base32_encoded_secret,
                             long          counter,

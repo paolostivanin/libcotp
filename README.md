@@ -97,11 +97,11 @@ uchar *base32_decode (const char   *user_data,
                       size_t        data_len,
                       cotp_error_t *err_code);
 
-int    is_str_valid_b32 (const char   *user_data);
+bool   is_string_valid_b32 (const char *user_data);
 ```
 
 where:
-- `user_data` is the data to be encoded/decoded
+- `user_data` is the data to be encoded or decoded
 - `data_len` is the length of the data to be encoded/decoded
 - `err_code` is where the error is stored
 
@@ -118,4 +118,5 @@ where:
 
 Both functions return and empty string if the input is an empty string. In such a case, `err` is set to `EMPTY_STRING`.
 
-`is_str_valid_b32` returns `1` if `user_data` is a valid base32 encoded string, `0` otherwise.
+`is_string_valid_b32` returns `true` if `user_data` is a valid base32 encoded string, `false` otherwise. Please note that `user_data` can contain spaces, since
+the fucntion will also take care of trimming those.

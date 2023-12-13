@@ -2,8 +2,6 @@
 #include <string.h>
 #include "../cotp.h"
 
-#define FALSE                       0
-#define TRUE                   !FALSE
 #define BITS_PER_BYTE               8
 #define BITS_PER_B32_BLOCK          5
 
@@ -16,6 +14,10 @@
 const uint8_t b32_alphabet[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
 
 static int           get_char_index (uint8_t        c);
+
+static bool          valid_b32_str (const char *str);
+
+static bool          has_space      (const char *str);
 
 static cotp_error_t  check_input    (const uint8_t *user_data,
                                      size_t         data_len,
@@ -42,13 +44,13 @@ base32_encode (const uint8_t *user_data,
 
     size_t user_data_chars = 0, total_bits = 0;
     int num_of_equals = 0;
-    int null_terminated = FALSE;
+    int null_terminated = false;
     if (strlen ((char *)user_data) == data_len - 1) {
         // the user might give the input with the null byte, we need to check for that
-        null_terminated = TRUE;
+        null_terminated = true;
     }
     for (int i = 0; i < data_len; i++) {
-        if (null_terminated == TRUE && user_data[i] == '\0' && i == data_len-1) {
+        if (null_terminated == true && user_data[i] == '\0' && i == data_len-1) {
             break;
         }
         total_bits += 8;
@@ -113,7 +115,7 @@ base32_decode (const char   *user_data_untrimmed,
     }
     data_len -= strip_char (user_data);
 
-    if (!is_str_valid_b32(user_data)) {
+    if (!is_string_valid_b32 (user_data)) {
         free (user_data);
         *err_code = INVALID_B32_INPUT;
         return NULL;
@@ -141,11 +143,11 @@ base32_decode (const char   *user_data_untrimmed,
         int char_index = get_char_index ((uint8_t)user_data[i]);
         if (bits_left > BITS_PER_B32_BLOCK) {
             mask = (uint8_t)char_index << (bits_left - BITS_PER_B32_BLOCK);
-            current_byte = (uint8_t) (current_byte | mask);
+            current_byte |= mask;
             bits_left -= BITS_PER_B32_BLOCK;
         } else {
             mask = (uint8_t)char_index >> (BITS_PER_B32_BLOCK - bits_left);
-            current_byte = (uint8_t) (current_byte | mask);
+            current_byte |= mask;
             decoded_data[j++] = current_byte;
             current_byte = (uint8_t) (char_index << (BITS_PER_BYTE - BITS_PER_B32_BLOCK + bits_left));
             bits_left += BITS_PER_BYTE - BITS_PER_B32_BLOCK;
@@ -161,21 +163,62 @@ base32_decode (const char   *user_data_untrimmed,
 }
 
 
-int
-is_str_valid_b32 (const char *user_data)
+bool
+is_string_valid_b32 (const char *user_data)
 {
+    if (user_data == NULL) {
+        return false;
+    }
+
+    if (has_space (user_data)) {
+        char *trimmed = strdup (user_data);
+        if (trimmed == NULL) {
+            return false;
+        }
+        strip_char (trimmed);
+        bool valid = valid_b32_str (trimmed);
+        free(trimmed);
+        return valid;
+    }
+
+    return valid_b32_str (user_data);
+}
+
+
+static bool
+valid_b32_str (const char *str)
+{
+    if (str == NULL) {
+        return false;
+    }
+
     uint8_t table[128] = {0};
     for (const uint8_t *p = b32_alphabet; *p; p++) {
         table[*p] = 1;
     }
     table['='] = 1;
 
-    for (; *user_data; user_data++) {
-        if (!table[(uint8_t)*user_data]) {
-            return 0;
+    while (*str) {
+        if (!table[(uint8_t)*str]) {
+            return false;
         }
+        str++;
     }
-    return 1;
+
+    return true;
+}
+
+
+static bool
+has_space (const char *str)
+{
+    while (*str) {
+        if (*str == ' ') {
+            return true;
+        }
+        str++;
+    }
+    return false;
 }
 
 
