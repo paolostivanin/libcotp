@@ -8,7 +8,7 @@ C library that generates TOTP and HOTP according to [RFC-6238](https://tools.iet
 
 ## Requirements
 - GCC/Clang and CMake to build the library
-- libgcrypt or openssl
+- libgcrypt >= 1.8.0 or openssl >= 3.0.0
 
 ## Build and Install
 ```
