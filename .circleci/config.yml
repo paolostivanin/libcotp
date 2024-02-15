@@ -1,9 +1,9 @@
 version: 2.0
 
 jobs:
-  debian:
+  debianStable_gcrypt:
     docker:
-      - image: debian:testing
+      - image: debian:stable
     steps:
       - checkout
       - run:
@@ -15,10 +15,9 @@ jobs:
             ./tests/test_base32encode
             ./tests/test_base32decode
             ./tests/test_cotp
-
-  ubuntu:
+  ubuntu2204_gcrypt:
     docker:
-      - image: ubuntu:latest
+      - image: ubuntu:22.04
     steps:
       - checkout
       - run:
@@ -26,6 +25,34 @@ jobs:
             apt update && apt -y install git gcc clang cmake libcriterion-dev libgcrypt20-dev
             mkdir build && cd "$_"
             cmake -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_TESTS=ON ..
+            make && make install
+            ./tests/test_base32encode
+            ./tests/test_base32decode
+            ./tests/test_cotp
+  debianStable_openssl:
+    docker:
+      - image: debian:stable
+    steps:
+      - checkout
+      - run:
+          command: |
+            apt update && apt -y install git gcc clang cmake libcriterion-dev libssl-dev
+            mkdir build && cd "$_"
+            cmake -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_TESTS=ON -DHMAC_WRAPPER=openssl ..
+            make && make install
+            ./tests/test_base32encode
+            ./tests/test_base32decode
+            ./tests/test_cotp
+  ubuntu2204_openssl:
+    docker:
+      - image: ubuntu:22.04
+    steps:
+      - checkout
+      - run:
+          command: |
+            apt update && apt -y install git gcc clang cmake libcriterion-dev libssl-dev
+            mkdir build && cd "$_"
+            cmake -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_TESTS=ON -DHMAC_WRAPPER=openssl ..
             make && make install
             ./tests/test_base32encode
             ./tests/test_base32decode
@@ -35,5 +62,7 @@ workflows:
   version: 2
   build:
     jobs:
-      - debian
-      - ubuntu
+      - debianStable_gcrypt
+      - ubuntu2204_gcrypt
+      - debianStable_openssl
+      - ubuntu2204_openssl
