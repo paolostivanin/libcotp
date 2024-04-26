@@ -15,7 +15,10 @@
 
 find_path(GCRYPT_INCLUDE_DIR gcrypt.h)
 
-find_library(GCRYPT_LIBRARIES gcrypt)
+if(WIN32)
+    set(CMAKE_FIND_LIBRARY_SUFFIXES ".lib" ".dll" ".dll.a")
+endif()
+find_library(GCRYPT_LIBRARIES NAMES gcrypt libgcrypt)
 
 mark_as_advanced(GCRYPT_LIBRARIES GCRYPT_INCLUDE_DIR)
 
