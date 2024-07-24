@@ -7,7 +7,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
 include(GNUInstallDirs)
 
-find_package(PkgConfig REQUIRED)
+find_package(PkgConfig)
 
 option(BUILD_SHARED_LIBS "Build libcotp as a shared library" ON)
 option(BUILD_TESTS "Build base32 and cotp tests" OFF)
@@ -53,9 +53,11 @@ set(SOURCE_FILES
 )
 
 # Set compiler flags for all targets
-add_compile_options(-Wall -Wextra -O3 -Wformat=2 -Wmissing-format-attribute -fstack-protector-strong -Wundef -Wmissing-format-attribute
-        -fdiagnostics-color=always -Wstrict-prototypes -Wunreachable-code -Wchar-subscripts -Wwrite-strings -Wpointer-arith -Wbad-function-cast
-        -Wcast-align -Werror=format-security -Werror=implicit-function-declaration -Wno-sign-compare -Wno-format-nonliteral -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3)
+if(NOT MSVC)
+    add_compile_options(-Wall -Wextra -O3 -Wformat=2 -Wmissing-format-attribute -fstack-protector-strong -Wundef -Wmissing-format-attribute
+            -fdiagnostics-color=always -Wstrict-prototypes -Wunreachable-code -Wchar-subscripts -Wwrite-strings -Wpointer-arith -Wbad-function-cast
+            -Wcast-align -Werror=format-security -Werror=implicit-function-declaration -Wno-sign-compare -Wno-format-nonliteral -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3)
+endif()
 
 add_library(cotp ${SOURCE_FILES})
 
@@ -65,10 +67,12 @@ target_include_directories(cotp
             ${CMAKE_CURRENT_SOURCE_DIR}/src
         PRIVATE
             ${HMAC_INCLUDE_DIR})
-target_compile_options(cotp PRIVATE
-        -Wall -Wextra -O3 -Wformat=2 -Wmissing-format-attribute -fstack-protector-strong -Wundef -Wmissing-format-attribute
-        -fdiagnostics-color=always -Wstrict-prototypes -Wunreachable-code -Wchar-subscripts -Wwrite-strings -Wpointer-arith -Wbad-function-cast
-        -Wcast-align -Werror=format-security -Werror=implicit-function-declaration -Wno-sign-compare -Wno-format-nonliteral -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3)
+if(NOT MSVC)
+    target_compile_options(cotp PRIVATE
+            -Wall -Wextra -O3 -Wformat=2 -Wmissing-format-attribute -fstack-protector-strong -Wundef -Wmissing-format-attribute
+            -fdiagnostics-color=always -Wstrict-prototypes -Wunreachable-code -Wchar-subscripts -Wwrite-strings -Wpointer-arith -Wbad-function-cast
+            -Wcast-align -Werror=format-security -Werror=implicit-function-declaration -Wno-sign-compare -Wno-format-nonliteral -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3)
+endif()
 target_link_directories(cotp PRIVATE
         ${HMACLIBRARY_DIRS})
 
@@ -89,19 +93,20 @@ install(
   DESTINATION ${COTP_INC_DIR}
 )
 
-# Allow adding prefix if CMAKE_INSTALL_INCLUDEDIR not absolute.
-if(IS_ABSOLUTE "${CMAKE_INSTALL_INCLUDEDIR}")
-    set(PKGCONFIG_TARGET_INCLUDES "${CMAKE_INSTALL_INCLUDEDIR}")
-else()
-    set(PKGCONFIG_TARGET_INCLUDES "\${prefix}/${CMAKE_INSTALL_INCLUDEDIR}")
-endif()
-# Allow adding prefix if CMAKE_INSTALL_LIBDIR not absolute.
-if(IS_ABSOLUTE "${CMAKE_INSTALL_LIBDIR}")
-    set(PKGCONFIG_TARGET_LIBS "${CMAKE_INSTALL_LIBDIR}")
-else()
-    set(PKGCONFIG_TARGET_LIBS "\${exec_prefix}/${CMAKE_INSTALL_LIBDIR}")
-endif()
+if (PkgConfig_FOUND)
+    # Allow adding prefix if CMAKE_INSTALL_INCLUDEDIR not absolute.
+    if(IS_ABSOLUTE "${CMAKE_INSTALL_INCLUDEDIR}")
+        set(PKGCONFIG_TARGET_INCLUDES "${CMAKE_INSTALL_INCLUDEDIR}")
+    else()
+        set(PKGCONFIG_TARGET_INCLUDES "\${prefix}/${CMAKE_INSTALL_INCLUDEDIR}")
+    endif()
+    # Allow adding prefix if CMAKE_INSTALL_LIBDIR not absolute.
+    if(IS_ABSOLUTE "${CMAKE_INSTALL_LIBDIR}")
+        set(PKGCONFIG_TARGET_LIBS "${CMAKE_INSTALL_LIBDIR}")
+    else()
+        set(PKGCONFIG_TARGET_LIBS "\${exec_prefix}/${CMAKE_INSTALL_LIBDIR}")
+    endif()
 
-configure_file("cotp.pc.in" "cotp.pc" @ONLY)
-install(FILES "${CMAKE_CURRENT_BINARY_DIR}/cotp.pc" DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig/)
-
+    configure_file("cotp.pc.in" "cotp.pc" @ONLY)
+    install(FILES "${CMAKE_CURRENT_BINARY_DIR}/cotp.pc" DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig/)
+endif()
