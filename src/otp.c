@@ -155,7 +155,7 @@ get_steam_totp_at (const char   *secret,
         return NULL;
     }
 
-    whmac_handle_t *hd = whmac_gethandle (SHA1);
+    whmac_handle_t *hd = whmac_gethandle (SHA256);
     if (hd == NULL) {
         fprintf (stderr, "Error while opening the cipher handle.\n");
         return NULL;

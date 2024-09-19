@@ -17,13 +17,13 @@ $ cd libcotp
 $ mkdir build && cd $_
 $ cmake -DCMAKE_INSTALL_PREFIX=/usr ..
 $ make
-# make install
+# sudo make install
 ```
 
 Available options you can pass to `cmake`:
 * `-DBUILD_TESTS=ON`: if you want to compile also the tests (default **OFF**, requires criterion)
 * `-DBUILD_SHARED_LIBS=ON`: if you want to build libcotp as a shared library (default **ON**)
-* `-DHMAC_WRAPPER="<gcrypt|openssl>"`: you can choose between GCrypt and OpenSSL (default **Gcrypt**)
+* `-DHMAC_WRAPPER="<gcrypt|openssl|mbedtls>"`: you can choose between GCrypt and OpenSSL (default **Gcrypt**)
 
 ## How To Use It
 ```

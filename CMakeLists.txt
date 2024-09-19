@@ -31,6 +31,18 @@ elseif("${HMAC_WRAPPER}" STREQUAL "openssl")
     set(HMAC_LIBRARY_DIRS ${OPENSSL_LIBRARY_DIRS})
     set(HMAC_LIBRARIES ${OPENSSL_LIBRARIES})
     message("libcotp will use openssl for hmac")
+elseif("${HMAC_WRAPPER}" STREQUAL "mbedtls")
+    # find_package(mbedtls)
+    set(HMAC_SOURCE_FILES
+            src/utils/whmac_mbedtls.c
+    )
+    set(HMAC_INCLUDE_DIR "/usr/include/mbedtls")
+    set(HMAC_LIBRARY_DIRS )
+    set(HMAC_LIBRARIES   "/lib/x86_64-linux-gnu/libmbedcrypto.so")
+    set(HMAC_LIBRARIES_1 "/lib/x86_64-linux-gnu/libmbedx509.so")
+    set(HMAC_LIBRARIES_2 "/lib/x86_64-linux-gnu/libmbedtls.so")
+    # set(HMAC_LIBRARIES "libmbedx509.so libmbedtls.so libmbedcrypto.so")
+    message("libcotp will use mbedtls for hmac")
 else()
     message("libcotp can't use ${HMAC_WRAPPER} for hmac")
 endif()
@@ -62,6 +74,8 @@ endif()
 add_library(cotp ${SOURCE_FILES})
 
 target_link_libraries(cotp ${HMAC_LIBRARIES})
+target_link_libraries(cotp ${HMAC_LIBRARIES_1})
+target_link_libraries(cotp ${HMAC_LIBRARIES_2})
 target_include_directories(cotp
         PUBLIC
             ${CMAKE_CURRENT_SOURCE_DIR}/src
