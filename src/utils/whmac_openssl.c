@@ -52,8 +52,8 @@ whmac_gethandle (int algo)
 
         size_t params_n = 0;
 
-        whmac_handle->mac_params[params_n++] = OSSL_PARAM_construct_utf8_string("digest", (char *)openssl_algo[algo], 0);
-        whmac_handle->mac_params[params_n] = OSSL_PARAM_construct_end();
+        whmac_handle->mac_params[params_n++] = OSSL_PARAM_construct_utf8_string ("digest", (char *)openssl_algo[algo], 0);
+        whmac_handle->mac_params[params_n] = OSSL_PARAM_construct_end ();
     }
     return whmac_handle;
 }
