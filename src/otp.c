@@ -6,6 +6,20 @@
 #include "whmac.h"
 #include "cotp.h"
 
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+#define REVERSE_BYTES(C, C_reverse_byte_order)           \
+        for (int j = 0, i = 7; j < 8; j++, i--) {            \
+            (C_reverse_byte_order)[i] = ((unsigned char *)&(C))[j]; \
+        }
+#elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+#define REVERSE_BYTES(C, C_reverse_byte_order)           \
+        for (int j = 0; j < 8; j++) {                        \
+            (C_reverse_byte_order)[j] = ((unsigned char *)&(C))[j]; \
+        }
+#else
+    #error "Unknown endianness"
+#endif
+
 static char  *normalize_secret (const char  *K);
 
 static char  *get_steam_code   (const uchar *hmac,
@@ -278,13 +292,10 @@ compute_hmac (const char *K,
     }
 
     unsigned char C_reverse_byte_order[8];
-    int j, i;
-    for (j = 0, i = 7; j < 8 && i >= 0; j++, i--) {
-        C_reverse_byte_order[i] = ((unsigned char *) &C)[j];
-    }
+    REVERSE_BYTES(C, C_reverse_byte_order);
 
-    cotp_error_t copterr = whmac_setkey (hd, secret, secret_len);
-    if (copterr) {
+    err = whmac_setkey (hd, secret, secret_len);
+    if (err) {
         fprintf (stderr, "Error while setting the cipher key.\n");
         free (secret);
         return NULL;
