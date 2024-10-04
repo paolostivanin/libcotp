@@ -8,7 +8,7 @@ C library that generates TOTP and HOTP according to [RFC-6238](https://tools.iet
 
 ## Requirements
 - GCC/Clang and CMake to build the library
-- libgcrypt >= 1.8.0 or openssl >= 3.0.0
+- libgcrypt >= 1.8.0 or openssl >= 3.0.0 or mbedtls (works with both 2.x and 3.x)
 
 ## Build and Install
 ```
@@ -17,13 +17,13 @@ $ cd libcotp
 $ mkdir build && cd $_
 $ cmake -DCMAKE_INSTALL_PREFIX=/usr ..
 $ make
-# make install
+$ sudo make install
 ```
 
 Available options you can pass to `cmake`:
 * `-DBUILD_TESTS=ON`: if you want to compile also the tests (default **OFF**, requires criterion)
-* `-DBUILD_SHARED_LIBS=ON`: if you want to build libcotp as a shared library (default **ON**)
-* `-DHMAC_WRAPPER="<gcrypt|openssl>"`: you can choose between GCrypt and OpenSSL (default **Gcrypt**)
+* `-DBUILD_SHARED_LIBS=OFF`: if you want to build libcotp as a static library (default **ON**)
+* `-DHMAC_WRAPPER="<gcrypt|openssl|mbedtls>"`: you can choose between GCrypt, OpenSSL or MbedTLS (default **Gcrypt**)
 
 ## How To Use It
 ```

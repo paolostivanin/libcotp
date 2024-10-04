@@ -11,15 +11,15 @@ find_package(PkgConfig)
 
 option(BUILD_SHARED_LIBS "Build libcotp as a shared library" ON)
 option(BUILD_TESTS "Build base32 and cotp tests" OFF)
+set(HMAC_WRAPPER "gcrypt" CACHE STRING "Choose between gcrypt (default), openssl or mbedtls for HMAC computation")
+set_property(CACHE HMAC_WRAPPER PROPERTY STRINGS "gcrypt" "openssl" "mbedtls")
 
-set(HMAC_WRAPPER "gcrypt" CACHE STRING "library to use during hmac computation")
 if("${HMAC_WRAPPER}" STREQUAL "gcrypt")
     set(HMAC_SOURCE_FILES
             src/utils/whmac_gcrypt.c
     )
     find_package(Gcrypt 1.8.0 REQUIRED)
     set(HMAC_INCLUDE_DIR ${GCRYPT_INCLUDE_DIR})
-    set(HMAC_LIBRARY_DIRS ${GCRYPT_LIBRARY_DIRS})
     set(HMAC_LIBRARIES ${GCRYPT_LIBRARIES})
     message("libcotp will use gcrypt for hmac")
 elseif("${HMAC_WRAPPER}" STREQUAL "openssl")
@@ -28,15 +28,21 @@ elseif("${HMAC_WRAPPER}" STREQUAL "openssl")
             src/utils/whmac_openssl.c
     )
     set(HMAC_INCLUDE_DIR ${OPENSSL_INCLUDE_DIR})
-    set(HMAC_LIBRARY_DIRS ${OPENSSL_LIBRARY_DIRS})
     set(HMAC_LIBRARIES ${OPENSSL_LIBRARIES})
     message("libcotp will use openssl for hmac")
+elseif("${HMAC_WRAPPER}" STREQUAL "mbedtls")
+    find_package(MbedTLS REQUIRED)
+    set(HMAC_SOURCE_FILES
+            src/utils/whmac_mbedtls.c
+    )
+    set(HMAC_INCLUDE_DIR ${MBEDTLS_INCLUDE_DIRS})
+    set(HMAC_LIBRARIES ${MBEDTLS_LIBRARIES})
+    message("libcotp will use mbedtls for hmac")
 else()
     message("libcotp can't use ${HMAC_WRAPPER} for hmac")
 endif()
 
 include_directories(${HMAC_INCLUDE_DIR})
-link_directories(${HMAC_LIBRARY_DIRS})
 
 if (BUILD_TESTS)
     add_subdirectory(tests)

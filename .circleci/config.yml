@@ -8,6 +8,7 @@ jobs:
       - checkout
       - run:
           command: |
+            export DEBIAN_FRONTEND=noninteractive
             apt update && apt -y install git gcc clang cmake libcriterion-dev libgcrypt20-dev
             mkdir build && cd "$_"
             cmake -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_TESTS=ON ..
@@ -15,13 +16,14 @@ jobs:
             ./tests/test_base32encode
             ./tests/test_base32decode
             ./tests/test_cotp
-  ubuntu2204_gcrypt:
+  ubuntu2404_gcrypt:
     docker:
-      - image: ubuntu:22.04
+      - image: ubuntu:24.04
     steps:
       - checkout
       - run:
           command: |
+            export DEBIAN_FRONTEND=noninteractive
             apt update && apt -y install git gcc clang cmake libcriterion-dev libgcrypt20-dev
             mkdir build && cd "$_"
             cmake -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_TESTS=ON ..
@@ -36,6 +38,7 @@ jobs:
       - checkout
       - run:
           command: |
+            export DEBIAN_FRONTEND=noninteractive
             apt update && apt -y install git gcc clang cmake libcriterion-dev libssl-dev
             mkdir build && cd "$_"
             cmake -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_TESTS=ON -DHMAC_WRAPPER=openssl ..
@@ -43,13 +46,14 @@ jobs:
             ./tests/test_base32encode
             ./tests/test_base32decode
             ./tests/test_cotp
-  ubuntu2204_openssl:
+  ubuntu2404_openssl:
     docker:
-      - image: ubuntu:22.04
+      - image: ubuntu:24.04
     steps:
       - checkout
       - run:
           command: |
+            export DEBIAN_FRONTEND=noninteractive
             apt update && apt -y install git gcc clang cmake libcriterion-dev libssl-dev
             mkdir build && cd "$_"
             cmake -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_TESTS=ON -DHMAC_WRAPPER=openssl ..
@@ -57,12 +61,43 @@ jobs:
             ./tests/test_base32encode
             ./tests/test_base32decode
             ./tests/test_cotp
-
+  debianStable_mbedtls:
+    docker:
+      - image: debian:stable
+    steps:
+      - checkout
+      - run:
+          command: |
+            export DEBIAN_FRONTEND=noninteractive
+            apt update && apt -y install git gcc clang cmake libcriterion-dev libmbedtls-dev
+            mkdir build && cd "$_"
+            cmake -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_TESTS=ON -DHMAC_WRAPPER=mbedtls ..
+            make && make install
+            ./tests/test_base32encode
+            ./tests/test_base32decode
+            ./tests/test_cotp
+  ubuntu2404_mbedtls:
+    docker:
+      - image: ubuntu:24.04
+    steps:
+      - checkout
+      - run:
+          command: |
+            export DEBIAN_FRONTEND=noninteractive
+            apt update && apt -y install git gcc clang cmake libcriterion-dev libmbedtls-dev
+            mkdir build && cd "$_"
+            cmake -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_TESTS=ON -DHMAC_WRAPPER=mbedtls ..
+            make && make install
+            ./tests/test_base32encode
+            ./tests/test_base32decode
+            ./tests/test_cotp
 workflows:
   version: 2
   build:
     jobs:
       - debianStable_gcrypt
-      - ubuntu2204_gcrypt
+      - ubuntu2404_gcrypt
       - debianStable_openssl
-      - ubuntu2204_openssl
+      - ubuntu2404_openssl
+      - debianStable_mbedtls
+      - ubuntu2404_mbedtls
