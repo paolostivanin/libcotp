@@ -153,7 +153,7 @@ base32_decode (const char   *user_data_untrimmed,
             bits_left += BITS_PER_BYTE - BITS_PER_B32_BLOCK;
         }
     }
-    decoded_data[output_length-1] = '\0';
+    decoded_data[output_length] = '\0';
 
     free (user_data);
 
