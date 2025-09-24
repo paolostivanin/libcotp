@@ -6,6 +6,24 @@
 #include "whmac.h"
 #include "cotp.h"
 
+static void secure_memzero(void *p, size_t n) {
+    volatile unsigned char *vp = (volatile unsigned char *)p;
+    while (n--) {
+        *vp++ = 0;
+    }
+}
+
+static size_t b32_decoded_len_from_str(const char *s) {
+    if (!s) return 0;
+    size_t chars = 0;
+    for (const char *p = s; *p; ++p) {
+        if (*p != '=' && *p != ' ') {
+            ++chars;
+        }
+    }
+    return (chars * 5) / 8; // floor
+}
+
 #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 #define REVERSE_BYTES(C, C_reverse_byte_order)           \
         for (int j = 0, i = 7; j < 8; j++, i--) {            \
@@ -83,9 +101,11 @@ get_hotp (const char   *secret,
         return NULL;
     }
 
+    size_t dlen = whmac_getlen(hd);
     int tk = truncate (hmac, digits, hd);
     whmac_freehandle (hd);
 
+    secure_memzero(hmac, dlen);
     free (hmac);
 
     *err_code = NO_ERROR;
@@ -183,10 +203,12 @@ get_steam_totp_at (const char   *secret,
 
     char *totp = get_steam_code (hmac, hd);
 
+    size_t dlen = whmac_getlen(hd);
     whmac_freehandle (hd);
 
     *err_code = NO_ERROR;
 
+    secure_memzero(hmac, dlen);
     free(hmac);
 
     return totp;
@@ -234,18 +256,19 @@ static char *
 get_steam_code (const unsigned char *hmac,
                 whmac_handle_t *hd)
 {
-    int offset = (hmac[whmac_getlen(hd)-1] & 0x0f);
+    size_t hlen = whmac_getlen(hd);
+    int offset = (hmac[hlen-1] & 0x0f);
 
     // Starting from the offset, take the successive 4 bytes while stripping the topmost bit to prevent it being handled as a signed integer
-    int bin_code = ((hmac[offset] & 0x7f) << 24) | ((hmac[offset + 1] & 0xff) << 16) | ((hmac[offset + 2] & 0xff) << 8) | ((hmac[offset + 3] & 0xff));
+    uint32_t bin_code = ((uint32_t)(hmac[offset] & 0x7f) << 24) | ((uint32_t)(hmac[offset + 1] & 0xff) << 16) | ((uint32_t)(hmac[offset + 2] & 0xff) << 8) | ((uint32_t)(hmac[offset + 3] & 0xff));
 
     const char steam_alphabet[] = "23456789BCDFGHJKMNPQRTVWXY";
 
     char code[6];
     size_t steam_alphabet_len = strlen (steam_alphabet);
     for (int i = 0; i < 5; i++) {
-        int mod = (int)(bin_code % steam_alphabet_len);
-        bin_code = (int)(bin_code / steam_alphabet_len);
+        uint32_t mod = bin_code % (uint32_t)steam_alphabet_len;
+        bin_code = bin_code / (uint32_t)steam_alphabet_len;
         code[i] = steam_alphabet[mod];
     }
     code[5] = '\0';
@@ -260,13 +283,17 @@ truncate (const unsigned char *hmac,
           whmac_handle_t *hd)
 {
     // take the lower four bits of the last byte
-    int offset = hmac[whmac_getlen(hd) - 1] & 0x0f;
+    size_t hlen = whmac_getlen(hd);
+    int offset = hmac[hlen - 1] & 0x0f;
 
     // Starting from the offset, take the successive 4 bytes while stripping the topmost bit to prevent it being handled as a signed integer
-    int bin_code = ((hmac[offset] & 0x7f) << 24) | ((hmac[offset + 1] & 0xff) << 16) | ((hmac[offset + 2] & 0xff) << 8) | ((hmac[offset + 3] & 0xff));
+    uint32_t bin_code = ((uint32_t)(hmac[offset] & 0x7f) << 24) | ((uint32_t)(hmac[offset + 1] & 0xff) << 16) | ((uint32_t)(hmac[offset + 2] & 0xff) << 8) | ((uint32_t)(hmac[offset + 3] & 0xff));
 
-    long long int DIGITS_POWER[] = {1, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000, 1000000000, 10000000000};
-    int token = (int)(bin_code % DIGITS_POWER[digits_length]);
+    uint64_t mod = 1;
+    for (int i = 0; i < digits_length; ++i) {
+        mod *= 10ULL;
+    }
+    int token = (int)(((uint64_t)bin_code) % mod);
 
     return token;
 }
@@ -277,12 +304,12 @@ compute_hmac (const char *K,
               long        C,
               whmac_handle_t *hd)
 {
-    size_t secret_len = (size_t)((strlen(K) + 1.6 - 1) / 1.6);
-
     char *normalized_K = normalize_secret (K);
     if (normalized_K == NULL) {
         return NULL;
     }
+
+    size_t secret_len = b32_decoded_len_from_str(normalized_K);
 
     cotp_error_t err;
     unsigned char *secret = base32_decode (normalized_K, strlen(normalized_K), &err);
@@ -297,6 +324,7 @@ compute_hmac (const char *K,
     err = whmac_setkey (hd, secret, secret_len);
     if (err) {
         fprintf (stderr, "Error while setting the cipher key.\n");
+        secure_memzero(secret, secret_len);
         free (secret);
         return NULL;
     }
@@ -306,6 +334,7 @@ compute_hmac (const char *K,
     unsigned char *hmac = calloc (dlen, 1);
     if (hmac == NULL) {
         fprintf (stderr, "Error allocating memory");
+        secure_memzero(secret, secret_len);
         free (secret);
         return NULL;
     }
@@ -313,10 +342,13 @@ compute_hmac (const char *K,
     ssize_t flen = whmac_finalize (hd, hmac, dlen);
     if (flen < 0) {
         fprintf (stderr, "Error getting digest\n");
+        secure_memzero(hmac, dlen);
         free (hmac);
+        secure_memzero(secret, secret_len);
         free (secret);
         return NULL;
     }
+    secure_memzero(secret, secret_len);
     free (secret);
 
     return hmac;
@@ -331,9 +363,8 @@ finalize (int digits_length,
     if (token == NULL) {
         return NULL;
     }
-    char fmt[6];
-    sprintf (fmt, "%%0%dd", digits_length);
-    snprintf (token, digits_length + 1, fmt, tk);
+    // Print with leading zeros without building an intermediate format string
+    snprintf (token, digits_length + 1, "%0*d", digits_length, tk);
     return token;
 }
 
