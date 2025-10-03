@@ -129,7 +129,8 @@ base32_decode (const char   *user_data_untrimmed,
         }
     }
 
-    size_t output_length = (size_t)((user_data_chars + 1.6 + 1) / 1.6);  // round up
+    // Compute exact maximum output length as floor(chars * 5 / 8)
+    size_t output_length = (user_data_chars * 5) / 8;
     uint8_t *decoded_data = calloc(output_length + 1, 1);
     if (decoded_data == NULL) {
         free (user_data);
@@ -139,7 +140,8 @@ base32_decode (const char   *user_data_untrimmed,
 
     uint8_t mask, current_byte = 0;
     int bits_left = 8;
-    for (int i = 0, j = 0; i < user_data_chars; i++) {
+    size_t j = 0;
+    for (int i = 0; i < (int)user_data_chars; i++) {
         int char_index = get_char_index ((uint8_t)user_data[i]);
         if (bits_left > BITS_PER_B32_BLOCK) {
             mask = (uint8_t)char_index << (bits_left - BITS_PER_B32_BLOCK);
@@ -148,12 +150,14 @@ base32_decode (const char   *user_data_untrimmed,
         } else {
             mask = (uint8_t)char_index >> (BITS_PER_B32_BLOCK - bits_left);
             current_byte |= mask;
-            decoded_data[j++] = current_byte;
-            current_byte = (uint8_t) (char_index << (BITS_PER_BYTE - BITS_PER_B32_BLOCK + bits_left));
+            if (j < output_length) {
+                decoded_data[j++] = current_byte;
+            }
+            current_byte = (uint8_t)(char_index << (BITS_PER_BYTE - BITS_PER_B32_BLOCK + bits_left));
             bits_left += BITS_PER_BYTE - BITS_PER_B32_BLOCK;
         }
     }
-    decoded_data[output_length] = '\0';
+    decoded_data[j] = '\0';
 
     free (user_data);
 
