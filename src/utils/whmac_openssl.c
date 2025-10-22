@@ -67,7 +67,7 @@ whmac_freehandle (whmac_handle_t *hd)
 
 int
 whmac_setkey (whmac_handle_t *hd,
-              unsigned char  *buffer,
+              const unsigned char  *buffer,
               size_t          buflen)
 {
     hd->ctx = EVP_MAC_CTX_new (hd->mac);
@@ -81,7 +81,7 @@ whmac_setkey (whmac_handle_t *hd,
 
 void
 whmac_update (whmac_handle_t *hd,
-              unsigned char  *buffer,
+              const unsigned char  *buffer,
               size_t          buflen)
 {
     EVP_MAC_update (hd->ctx, buffer, buflen);

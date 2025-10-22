@@ -67,7 +67,7 @@ whmac_freehandle (whmac_handle_t *hd)
 
 int
 whmac_setkey (whmac_handle_t *hd,
-              unsigned char *buffer,
+              const unsigned char *buffer,
               size_t buflen)
 {
     mbedtls_md_hmac_starts (&(hd->sha_ctx), buffer, buflen);
@@ -76,9 +76,9 @@ whmac_setkey (whmac_handle_t *hd,
 
 void
 whmac_update (whmac_handle_t *hd,
-              unsigned char *buffer,
+              const unsigned char *buffer,
               size_t buflen)
-{   
+{
     mbedtls_md_hmac_update (&(hd->sha_ctx), buffer, buflen);
 }
 
