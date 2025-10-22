@@ -55,6 +55,14 @@ int64_t otp_i     = otp_to_int     (const char   *otp,
                                     cotp_error_t *err_code);
 ```
 
+where:
+- `base32_encoded_secret` is the **base32 encoded** secret. Usually, a website gives you the secret already base32 encoded, so you should pay attention to not encode the secret again. The format of the secret can either be `hxdm vjec jjws` or `HXDMVJECJJWS`. In the first case, the library will normalize the secret to second format before computing the OTP.
+- `digits` is between `4` and `10` inclusive
+- `period` is between `1` and `120` inclusive
+- `counter` is a value decided with the server
+- `target_date` is the target date specified as the **unix epoch format in seconds**
+- `algo` is either `SHA1`, `SHA256` or `SHA512`
+
 ### Ownership and lifetime
 - All OTP/base32 API functions that return char* or uchar* allocate a new buffer on success. You own it; call free() when done.
 - On error, these functions return NULL and set the provided cotp_error_t out-parameter.
@@ -75,15 +83,6 @@ free(code);
 - Time source: TOTP correctness depends on accurate time. Sync your clock (e.g., NTP). Consider using a monotonic source for step math when appropriate.
 - Drift and validation: When validating user-entered TOTPs, allow a small window (±1 or ±2 periods) and rate-limit attempts.
 - Secret handling: Treat decoded secrets as sensitive; wipe memory when feasible and store secrets securely.
-
-where:
-- `secret_key` is the **base32 encoded** secret. Usually, a website gives you the secret already base32 encoded, so you should pay attention to not encode the secret again.
-The format of the secret can either be `hxdm vjec jjws` or `HXDMVJECJJWS`. In the first case, the library will normalize the secret to second format before computing the OTP.
-- `digits` is between `4` and `10` inclusive
-- `period` is between `1` and `120` inclusive
-- `counter` is a value decided with the server
-- `target_date` is the target date specified as the **unix epoch format in seconds**
-- `algo` is either `SHA1`, `SHA256` or `SHA512`
 
 ### Optional helpers
 - Validation (behind `-DCOTP_ENABLE_VALIDATION=ON`):
