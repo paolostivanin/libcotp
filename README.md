@@ -21,9 +21,10 @@ $ sudo make install
 ```
 
 Available options you can pass to `cmake`:
-* `-DBUILD_TESTS=ON`: if you want to compile also the tests (default **OFF**, requires criterion)
+* `-DBUILD_TESTS=ON`: if you want to compile also the tests (default **OFF**)
 * `-DBUILD_SHARED_LIBS=OFF`: if you want to build libcotp as a static library (default **ON**)
-* `-DHMAC_WRAPPER="<gcrypt|openssl|mbedtls>"`: you can choose between GCrypt, OpenSSL or MbedTLS (default **Gcrypt**)
+* `-DHMAC_WRAPPER="<gcrypt|openssl|mbedtls>"`: you can choose between GCrypt, OpenSSL or MbedTLS (default **gcrypt**)
+* `-DCOTP_ENABLE_VALIDATION=ON`: enable optional helper APIs for validating TOTP codes within a time window (off by default)
 
 ## How To Use It
 ```
@@ -46,6 +47,7 @@ char *hotp        = get_hotp       (const char   *base32_encoded_secret,
 char *totp_at     = get_totp_at    (const char   *base32_encoded_secret,
                                     long          target_date,
                                     int           digits,
+                                    int           period,
                                     int           algo,
                                     cotp_error_t *err);
 
@@ -53,20 +55,51 @@ int64_t otp_i     = otp_to_int     (const char   *otp,
                                     cotp_error_t *err_code);
 ```
 
+### Ownership and lifetime
+- All OTP/base32 API functions that return char* or uchar* allocate a new buffer on success. You own it; call free() when done.
+- On error, these functions return NULL and set the provided cotp_error_t out-parameter.
+- otp_to_int never allocates. It returns -1 on invalid input (err = INVALID_USER_INPUT). If the input had leading zeroes, it returns the integer value without them and sets err = MISSING_LEADING_ZERO.
+
+Example:
+```
+cotp_error_t err;
+char *code = get_totp("HXDMVJECJJWSRB3HWIZR4IFUGFTMXBOZ", 6, 30, SHA1, &err);
+if (!code) {
+    // handle error
+}
+// use code
+free(code);
+```
+
+### Security notes (operational)
+- Time source: TOTP correctness depends on accurate time. Sync your clock (e.g., NTP). Consider using a monotonic source for step math when appropriate.
+- Drift and validation: When validating user-entered TOTPs, allow a small window (±1 or ±2 periods) and rate-limit attempts.
+- Secret handling: Treat decoded secrets as sensitive; wipe memory when feasible and store secrets securely.
+
 where:
 - `secret_key` is the **base32 encoded** secret. Usually, a website gives you the secret already base32 encoded, so you should pay attention to not encode the secret again.
 The format of the secret can either be `hxdm vjec jjws` or `HXDMVJECJJWS`. In the first case, the library will normalize the secret to second format before computing the OTP.
-- `digits` is between `3` and `10` inclusive
+- `digits` is between `4` and `10` inclusive
 - `period` is between `1` and `120` inclusive
 - `counter` is a value decided with the server
 - `target_date` is the target date specified as the **unix epoch format in seconds**
 - `algo` is either `SHA1`, `SHA256` or `SHA512`
 
+### Optional helpers
+- Validation (behind `-DCOTP_ENABLE_VALIDATION=ON`):
+  - `int validate_totp_in_window(const char* user_code, const char* base32_secret, long timestamp, int digits, int period, int sha_algo, int window, int* matched_delta, cotp_error_t* err)`
+  - Returns 1 on match within [-window, +window] steps, 0 otherwise. On match sets `err = VALID` and `matched_delta` to the offset.
+- Context API (convenience wrapper for repeated computations with same parameters):
+  - `cotp_ctx* cotp_ctx_create(int digits, int period, int sha_algo);`
+  - `char* cotp_ctx_totp_at(cotp_ctx* ctx, const char* base32_secret, long timestamp, cotp_error_t* err);`
+  - `char* cotp_ctx_totp(cotp_ctx* ctx, const char* base32_secret, cotp_error_t* err);`
+  - `void cotp_ctx_free(cotp_ctx* ctx);`
+
 ## Return values
 `get_totp`, `get_hotp` and `get_totp_at` return `NULL` if an error occurs and `err` is set to one of the following values:
 
 Errors:
-- `GCRYPT_VERSION_MISMATCH`, set if the installed Gcrypt library is too old
+- `WHMAC_ERROR`, generic error from the selected HMAC backend (initialization/finalization failure)
 - `INVALID_B32_INPUT`, set if the given input is not valid base32 text
 - `INVALID_ALGO`, set if the given algo is not supported by the library
 - `INVALID_PERIOD`, set if `period` is `<= 0` or `> 120` seconds
@@ -77,7 +110,7 @@ Errors:
 
 All good:
 - `NO_ERROR`, set if no error occurred
-- `VALID`, set if the given OTP is valid
+- `VALID`, used by optional validation helper APIs (when enabled) to indicate that a provided OTP matched within the allowed window
 
 The function `otp_to_int`:
 * returns `-1` if an error occurs and sets `err` to `INVALID_USER_INPUT`.
@@ -106,9 +139,8 @@ where:
 - `err_code` is where the error is stored
 
 `base32_encode` returns `NULL` if an error occurs and `err_code` is set to one of the following values:
-  - `INVALID_USER_INPUT`, set if the given input is not valid
-  - `MEMORY_ALLOCATION_ERROR`, set if an error happened during memory allocation
-  - `INVALID_USER_INPUT`, set if the given input is not valid
+- `INVALID_USER_INPUT`, set if the given input is not valid
+- `MEMORY_ALLOCATION_ERROR`, set if an error happened during memory allocation
 
 `base32_decode` returns `NULL` if an error occurs and `err_code` is set to one of the following values:
 - `INVALID_USER_INPUT`, set if the given input is not valid
@@ -116,7 +148,7 @@ where:
 - `INVALID_B32_INPUT`, set if the given input is not valid base32 text
 - `INVALID_USER_INPUT`, set if the given input is not valid
 
-Both functions return and empty string if the input is an empty string. In such a case, `err` is set to `EMPTY_STRING`.
+Both functions return an empty string if the input is an empty string. In such a case, `err` is set to `EMPTY_STRING`.
 
 `is_string_valid_b32` returns `true` if `user_data` is a valid base32 encoded string, `false` otherwise. Please note that `user_data` can contain spaces, since
-the fucntion will also take care of trimming those.
+the function will also take care of trimming those.

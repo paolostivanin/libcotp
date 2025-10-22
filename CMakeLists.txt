@@ -1,11 +1,12 @@
 cmake_minimum_required(VERSION 3.16)
-project(cotp VERSION "3.1.1" LANGUAGES "C")
+project(cotp VERSION "3.2.0" LANGUAGES "C")
 
 set(CMAKE_C_STANDARD 11)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
 include(GNUInstallDirs)
+include(CMakePackageConfigHelpers)
 
 find_package(PkgConfig)
 
@@ -21,7 +22,7 @@ if("${HMAC_WRAPPER}" STREQUAL "gcrypt")
     find_package(Gcrypt 1.8.0 REQUIRED)
     set(HMAC_INCLUDE_DIR ${GCRYPT_INCLUDE_DIR})
     set(HMAC_LIBRARIES ${GCRYPT_LIBRARIES})
-    message("libcotp will use gcrypt for hmac")
+    message(STATUS "libcotp: HMAC backend set to gcrypt")
 elseif("${HMAC_WRAPPER}" STREQUAL "openssl")
     find_package(OpenSSL 3.0.0 REQUIRED)
     set(HMAC_SOURCE_FILES
@@ -29,7 +30,7 @@ elseif("${HMAC_WRAPPER}" STREQUAL "openssl")
     )
     set(HMAC_INCLUDE_DIR ${OPENSSL_INCLUDE_DIR})
     set(HMAC_LIBRARIES ${OPENSSL_LIBRARIES})
-    message("libcotp will use openssl for hmac")
+    message(STATUS "libcotp: HMAC backend set to openssl")
 elseif("${HMAC_WRAPPER}" STREQUAL "mbedtls")
     find_package(MbedTLS REQUIRED)
     set(HMAC_SOURCE_FILES
@@ -37,7 +38,7 @@ elseif("${HMAC_WRAPPER}" STREQUAL "mbedtls")
     )
     set(HMAC_INCLUDE_DIR ${MBEDTLS_INCLUDE_DIRS})
     set(HMAC_LIBRARIES ${MBEDTLS_LIBRARIES})
-    message("libcotp will use mbedtls for hmac")
+    message(STATUS "libcotp: HMAC backend set to mbedtls")
 else()
     message("libcotp can't use ${HMAC_WRAPPER} for hmac")
 endif()
@@ -52,11 +53,20 @@ set(COTP_HEADERS
         src/cotp.h
 )
 
+option(COTP_ENABLE_VALIDATION "Enable helper APIs for OTP validation in a time window" OFF)
+
 set(SOURCE_FILES
         src/otp.c
         ${HMAC_SOURCE_FILES}
         src/utils/base32.c
+        src/utils/secure_zero.c
+        src/ctx.c
 )
+
+if (COTP_ENABLE_VALIDATION)
+    list(APPEND SOURCE_FILES src/utils/validation.c)
+    target_compile_definitions(cotp PUBLIC COTP_ENABLE_VALIDATION)
+endif()
 
 # Set compiler flags for all targets
 if(NOT MSVC)
@@ -70,7 +80,8 @@ add_library(cotp ${SOURCE_FILES})
 target_link_libraries(cotp ${HMAC_LIBRARIES})
 target_include_directories(cotp
         PUBLIC
-            ${CMAKE_CURRENT_SOURCE_DIR}/src
+            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
+            $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
         PRIVATE
             ${HMAC_INCLUDE_DIR})
 if(NOT MSVC)
@@ -89,6 +100,7 @@ set(COTP_INC_DIR "${CMAKE_INSTALL_INCLUDEDIR}")
 
 install(
   TARGETS cotp
+  EXPORT cotpTargets
   ARCHIVE DESTINATION ${COTP_LIB_DIR}
   LIBRARY DESTINATION ${COTP_LIB_DIR}
   COMPONENT library
@@ -98,6 +110,24 @@ install(
   FILES ${COTP_HEADERS}
   DESTINATION ${COTP_INC_DIR}
 )
+
+# CMake package config for find_package(COTP CONFIG)
+write_basic_package_version_file(
+    "${CMAKE_CURRENT_BINARY_DIR}/COTPConfigVersion.cmake"
+    VERSION ${PROJECT_VERSION}
+    COMPATIBILITY SameMajorVersion
+)
+configure_package_config_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/COTPConfig.cmake.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/COTPConfig.cmake"
+    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/COTP
+)
+install(FILES
+    "${CMAKE_CURRENT_BINARY_DIR}/COTPConfig.cmake"
+    "${CMAKE_CURRENT_BINARY_DIR}/COTPConfigVersion.cmake"
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/COTP
+)
+install(EXPORT cotpTargets NAMESPACE COTP:: DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/COTP)
 
 if (PkgConfig_FOUND)
     # Allow adding prefix if CMAKE_INSTALL_INCLUDEDIR not absolute.

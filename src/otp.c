@@ -3,15 +3,10 @@
 #include <time.h>
 #include <string.h>
 #include <ctype.h>
+#include <assert.h>
 #include "whmac.h"
 #include "cotp.h"
-
-static void secure_memzero(void *p, size_t n) {
-    volatile unsigned char *vp = (volatile unsigned char *)p;
-    while (n--) {
-        *vp++ = 0;
-    }
-}
+#include "utils/secure_zero.h"
 
 static size_t b32_decoded_len_from_str(const char *s) {
     if (!s) return 0;
@@ -105,7 +100,7 @@ get_hotp (const char   *secret,
     int tk = truncate (hmac, digits, hd);
     whmac_freehandle (hd);
 
-    secure_memzero(hmac, dlen);
+    cotp_secure_memzero(hmac, dlen);
     free (hmac);
 
     *err_code = NO_ERROR;
@@ -208,7 +203,7 @@ get_steam_totp_at (const char   *secret,
 
     *err_code = NO_ERROR;
 
-    secure_memzero(hmac, dlen);
+    cotp_secure_memzero(hmac, dlen);
     free(hmac);
 
     return totp;
@@ -258,6 +253,8 @@ get_steam_code (const unsigned char *hmac,
 {
     size_t hlen = whmac_getlen(hd);
     int offset = (hmac[hlen-1] & 0x0f);
+    assert(hlen >= 4);
+    assert(offset >= 0 && (size_t)offset + 3 < hlen);
 
     // Starting from the offset, take the successive 4 bytes while stripping the topmost bit to prevent it being handled as a signed integer
     uint32_t bin_code = ((uint32_t)(hmac[offset] & 0x7f) << 24) | ((uint32_t)(hmac[offset + 1] & 0xff) << 16) | ((uint32_t)(hmac[offset + 2] & 0xff) << 8) | ((uint32_t)(hmac[offset + 3] & 0xff));
@@ -285,6 +282,8 @@ truncate (const unsigned char *hmac,
     // take the lower four bits of the last byte
     size_t hlen = whmac_getlen(hd);
     int offset = hmac[hlen - 1] & 0x0f;
+    assert(hlen >= 4);
+    assert(offset >= 0 && (size_t)offset + 3 < hlen);
 
     // Starting from the offset, take the successive 4 bytes while stripping the topmost bit to prevent it being handled as a signed integer
     uint32_t bin_code = ((uint32_t)(hmac[offset] & 0x7f) << 24) | ((uint32_t)(hmac[offset + 1] & 0xff) << 16) | ((uint32_t)(hmac[offset + 2] & 0xff) << 8) | ((uint32_t)(hmac[offset + 3] & 0xff));
@@ -324,7 +323,7 @@ compute_hmac (const char *K,
     err = whmac_setkey (hd, secret, secret_len);
     if (err) {
         fprintf (stderr, "Error while setting the cipher key.\n");
-        secure_memzero(secret, secret_len);
+        cotp_secure_memzero(secret, secret_len);
         free (secret);
         return NULL;
     }
@@ -334,7 +333,7 @@ compute_hmac (const char *K,
     unsigned char *hmac = calloc (dlen, 1);
     if (hmac == NULL) {
         fprintf (stderr, "Error allocating memory");
-        secure_memzero(secret, secret_len);
+        cotp_secure_memzero(secret, secret_len);
         free (secret);
         return NULL;
     }
@@ -342,13 +341,13 @@ compute_hmac (const char *K,
     ssize_t flen = whmac_finalize (hd, hmac, dlen);
     if (flen < 0) {
         fprintf (stderr, "Error getting digest\n");
-        secure_memzero(hmac, dlen);
+        cotp_secure_memzero(hmac, dlen);
         free (hmac);
-        secure_memzero(secret, secret_len);
+        cotp_secure_memzero(secret, secret_len);
         free (secret);
         return NULL;
     }
-    secure_memzero(secret, secret_len);
+    cotp_secure_memzero(secret, secret_len);
     free (secret);
 
     return hmac;

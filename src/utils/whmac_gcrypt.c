@@ -65,7 +65,7 @@ whmac_freehandle (whmac_handle_t *hd)
 
 int
 whmac_setkey (whmac_handle_t *hd,
-              unsigned char  *buffer,
+              const unsigned char  *buffer,
               size_t          buflen)
 {
     if (gcry_md_setkey (hd->hd, buffer, buflen)) {
@@ -76,7 +76,7 @@ whmac_setkey (whmac_handle_t *hd,
 
 void
 whmac_update (whmac_handle_t *hd,
-              unsigned char  *buffer,
+              const unsigned char  *buffer,
               size_t          buflen)
 {
     gcry_md_write (hd->hd, buffer, buflen);
