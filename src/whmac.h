@@ -1,9 +1,5 @@
 #pragma once
 
-#if defined(_MSC_VER)
-typedef long ssize_t;
-#endif
-
 typedef struct whmac_handle_s whmac_handle_t;
 
 int             whmac_check      (void);

@@ -1,10 +1,6 @@
 #include "secure_zero.h"
 #include <string.h>
 
-#if defined(_MSC_VER)
-#include <windows.h>
-#endif
-
 void cotp_secure_memzero(void *ptr, size_t len) {
     if (ptr == NULL || len == 0) return;
 
@@ -13,9 +9,6 @@ void cotp_secure_memzero(void *ptr, size_t len) {
         return;
     #elif defined(HAVE_EXPLICIT_BZERO)
         explicit_bzero(ptr, len);
-        return;
-    #elif defined(_MSC_VER)
-        SecureZeroMemory(ptr, len);
         return;
     #else
         volatile unsigned char *p = (volatile unsigned char *)ptr;
