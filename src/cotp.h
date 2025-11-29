@@ -2,9 +2,9 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#define SHA1 0
-#define SHA256 1
-#define SHA512 2
+#define COTP_SHA1 0
+#define COTP_SHA256 1
+#define COTP_SHA512 2
 
 #define MIN_DIGTS 4
 #define MAX_DIGITS 10

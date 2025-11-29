@@ -65,15 +65,17 @@ set(SOURCE_FILES
 
 if (COTP_ENABLE_VALIDATION)
     list(APPEND SOURCE_FILES src/utils/validation.c)
-    target_compile_definitions(cotp PUBLIC COTP_ENABLE_VALIDATION)
 endif()
-
 
 add_compile_options(-Wall -Wextra -O3 -Wformat=2 -Wmissing-format-attribute -fstack-protector-strong -Wundef -Wmissing-format-attribute
         -fdiagnostics-color=always -Wstrict-prototypes -Wunreachable-code -Wchar-subscripts -Wwrite-strings -Wpointer-arith -Wbad-function-cast
         -Wcast-align -Werror=format-security -Werror=implicit-function-declaration -Wno-sign-compare -Wno-format-nonliteral -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3)
 
 add_library(cotp ${SOURCE_FILES})
+
+if (COTP_ENABLE_VALIDATION)
+    target_compile_definitions(cotp PUBLIC COTP_ENABLE_VALIDATION)
+endif()
 
 target_link_libraries(cotp ${HMAC_LIBRARIES})
 target_include_directories(cotp
