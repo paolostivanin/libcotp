@@ -1,4 +1,5 @@
 #include <string.h>
+#include <stdlib.h>
 #include "../cotp.h"
 
 #ifdef COTP_ENABLE_VALIDATION

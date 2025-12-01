@@ -184,7 +184,7 @@ get_steam_totp_at (const char   *secret,
         return NULL;
     }
 
-    whmac_handle_t *hd = whmac_gethandle (SHA1);
+    whmac_handle_t *hd = whmac_gethandle (COTP_SHA1);
     if (hd == NULL) {
         fprintf (stderr, "Error while opening the cipher handle.\n");
         return NULL;
@@ -385,5 +385,5 @@ check_otp_len (int digits_length)
 static int
 check_algo (int algo)
 {
-    return (algo != SHA1 && algo != SHA256 && algo != SHA512) ? INVALID_ALGO : VALID;
+    return (algo != COTP_SHA1 && algo != COTP_SHA256 && algo != COTP_SHA512) ? INVALID_ALGO : VALID;
 }
