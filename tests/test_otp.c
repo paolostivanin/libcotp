@@ -208,7 +208,7 @@ Test(totp_generic, test_fail_invalid_b32_input) {
     cotp_error_t err;
     char *totp = get_totp (K, 6, 30, SHA1, &err);
 
-    cr_expect_eq (err, WHMAC_ERROR, "Expected %d to be equal to %d\n", err, WHMAC_ERROR);
+    cr_expect_eq (err, INVALID_B32_INPUT, "Expected %d to be equal to %d\n", err, INVALID_B32_INPUT);
     cr_assert_null (totp);
 }
 
@@ -244,7 +244,7 @@ Test(totp_generic, test_steam_totp_input_b64) {
     cotp_error_t err;
     char *totp = get_steam_totp (b64_encoded_secret, 30, &err);
     cr_expect_null (totp, "Expected totp to be null");
-    cr_expect_eq (err, WHMAC_ERROR, "Expected %d to be equal to %d\n", err, WHMAC_ERROR);
+    cr_expect_eq (err, INVALID_B32_INPUT, "Expected %d to be equal to %d\n", err, INVALID_B32_INPUT);
     cr_assert_null (totp);
 }
 
@@ -293,4 +293,22 @@ Test(totp_int, test_err_invalid_input) {
     cr_expect_eq (totp, -1, "Expected %ld to be equal to %d\n", totp, -1);
 
     free (K_base32);
+}
+
+
+Test(totp_int, test_err_invalid_characters) {
+    cotp_error_t err;
+    int64_t totp = otp_to_int ("12a4", &err);
+
+    cr_expect_eq (err, INVALID_USER_INPUT, "Expected %d to be equal to %d\n", err, INVALID_USER_INPUT);
+    cr_expect_eq (totp, -1, "Expected %ld to be equal to %d\n", totp, -1);
+}
+
+
+Test(totp_generic, test_null_secret) {
+    cotp_error_t err;
+    char *totp = get_totp (NULL, 6, 30, SHA1, &err);
+
+    cr_expect_eq (err, INVALID_USER_INPUT, "Expected %d to be equal to %d\n", err, INVALID_USER_INPUT);
+    cr_assert_null (totp);
 }
