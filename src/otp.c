@@ -44,7 +44,8 @@ static int    truncate         (const uchar *hmac,
 
 static uchar *compute_hmac     (const char  *K,
                                 long         C,
-                                whmac_handle_t *hd);
+                                whmac_handle_t *hd,
+                                cotp_error_t *err_code);
 
 static char  *finalize         (int          digits_length,
                                 int          tk);
@@ -63,23 +64,31 @@ get_hotp (const char   *secret,
           int           algo,
           cotp_error_t *err_code)
 {
+    cotp_error_t local_err = NO_ERROR;
+    cotp_error_t *errp = err_code ? err_code : &local_err;
+
+    if (secret == NULL) {
+        *errp = INVALID_USER_INPUT;
+        return NULL;
+    }
+
     if (whmac_check () == -1) {
-        *err_code = WCRYPT_VERSION_MISMATCH;
+        *errp = WCRYPT_VERSION_MISMATCH;
         return NULL;
     }
 
     if (check_algo (algo) == INVALID_ALGO) {
-        *err_code = INVALID_ALGO;
+        *errp = INVALID_ALGO;
         return NULL;
     }
 
     if (check_otp_len (digits) == INVALID_DIGITS) {
-        *err_code = INVALID_DIGITS;
+        *errp = INVALID_DIGITS;
         return NULL;
     }
 
     if (counter < 0) {
-        *err_code = INVALID_COUNTER;
+        *errp = INVALID_COUNTER;
         return NULL;
     }
 
@@ -89,9 +98,8 @@ get_hotp (const char   *secret,
         return NULL;
     }
 
-    unsigned char *hmac = compute_hmac (secret, counter, hd);
+    unsigned char *hmac = compute_hmac (secret, counter, hd, errp);
     if (hmac == NULL) {
-        *err_code = WHMAC_ERROR;
         whmac_freehandle (hd);
         return NULL;
     }
@@ -103,7 +111,7 @@ get_hotp (const char   *secret,
     cotp_secure_memzero(hmac, dlen);
     free (hmac);
 
-    *err_code = NO_ERROR;
+    *errp = NO_ERROR;
 
     return finalize (digits, tk);
 }
@@ -117,29 +125,37 @@ get_totp_at (const char   *secret,
              int           algo,
              cotp_error_t *err_code)
 {
+    cotp_error_t local_err = NO_ERROR;
+    cotp_error_t *errp = err_code ? err_code : &local_err;
+
+    if (secret == NULL) {
+        *errp = INVALID_USER_INPUT;
+        return NULL;
+    }
+
     if (whmac_check () == -1) {
-        *err_code = WCRYPT_VERSION_MISMATCH;
+        *errp = WCRYPT_VERSION_MISMATCH;
         return NULL;
     }
 
     if (check_otp_len (digits) == INVALID_DIGITS) {
-        *err_code = INVALID_DIGITS;
+        *errp = INVALID_DIGITS;
         return NULL;
     }
 
     if (check_period (period) == INVALID_PERIOD) {
-        *err_code = INVALID_PERIOD;
+        *errp = INVALID_PERIOD;
         return NULL;
     }
 
     cotp_error_t err;
     char *totp = get_hotp (secret, current_timestamp / period, digits, algo, &err);
     if (err != NO_ERROR && err != VALID) {
-        *err_code = err;
+        *errp = err;
         return NULL;
     }
   
-    *err_code = NO_ERROR;
+    *errp = NO_ERROR;
 
     return totp;
 }
@@ -174,13 +190,21 @@ get_steam_totp_at (const char   *secret,
                    int           period,
                    cotp_error_t *err_code)
 {
+    cotp_error_t local_err = NO_ERROR;
+    cotp_error_t *errp = err_code ? err_code : &local_err;
+
+    if (secret == NULL) {
+        *errp = INVALID_USER_INPUT;
+        return NULL;
+    }
+
     if (whmac_check () == -1) {
-        *err_code = WCRYPT_VERSION_MISMATCH;
+        *errp = WCRYPT_VERSION_MISMATCH;
         return NULL;
     }
 
     if (check_period (period) == INVALID_PERIOD) {
-        *err_code = INVALID_PERIOD;
+        *errp = INVALID_PERIOD;
         return NULL;
     }
 
@@ -189,9 +213,8 @@ get_steam_totp_at (const char   *secret,
         fprintf (stderr, "Error while opening the cipher handle.\n");
         return NULL;
     }
-    unsigned char *hmac = compute_hmac (secret, current_timestamp / period, hd);
+    unsigned char *hmac = compute_hmac (secret, current_timestamp / period, hd, errp);
     if (hmac == NULL) {
-        *err_code = WHMAC_ERROR;
         whmac_freehandle (hd);
         return NULL;
     }
@@ -201,7 +224,7 @@ get_steam_totp_at (const char   *secret,
     size_t dlen = whmac_getlen(hd);
     whmac_freehandle (hd);
 
-    *err_code = NO_ERROR;
+    *errp = NO_ERROR;
 
     cotp_secure_memzero(hmac, dlen);
     free(hmac);
@@ -214,16 +237,31 @@ int64_t
 otp_to_int (const char   *otp,
             cotp_error_t *err_code)
 {
-    size_t len = strlen (otp);
-    if (len < MIN_DIGTS || len > MAX_DIGITS) {
-        *err_code = INVALID_USER_INPUT;
+    cotp_error_t local_err = NO_ERROR;
+    cotp_error_t *errp = err_code ? err_code : &local_err;
+
+    if (otp == NULL) {
+        *errp = INVALID_USER_INPUT;
         return -1;
     }
 
+    size_t len = strlen (otp);
+    if (len < MIN_DIGTS || len > MAX_DIGITS) {
+        *errp = INVALID_USER_INPUT;
+        return -1;
+    }
+
+    for (size_t i = 0; i < len; i++) {
+        if (!isdigit((unsigned char)otp[i])) {
+            *errp = INVALID_USER_INPUT;
+            return -1;
+        }
+    }
+
     if (otp[0] == '0') {
-        *err_code = MISSING_LEADING_ZERO;
+        *errp = MISSING_LEADING_ZERO;
     } else {
-        *err_code = NO_ERROR;
+        *errp = NO_ERROR;
     }
 
     return strtoll (otp, NULL, 10);
@@ -240,7 +278,7 @@ normalize_secret (const char *K)
     }
     for (int i = 0, j = 0; K[i] != '\0'; i++) {
         if (K[i] != ' ') {
-            nK[j++] = islower(K[i]) ? (char) toupper(K[i]) : K[i];
+            nK[j++] = islower((unsigned char)K[i]) ? (char) toupper((unsigned char)K[i]) : K[i];
         }
     }
     return nK;
@@ -301,30 +339,52 @@ truncate (const unsigned char *hmac,
 static unsigned char *
 compute_hmac (const char *K,
               long        C,
-              whmac_handle_t *hd)
+              whmac_handle_t *hd,
+              cotp_error_t *err_code)
 {
+    if (err_code == NULL) {
+        return NULL;
+    }
+
+    if (K == NULL) {
+        *err_code = INVALID_USER_INPUT;
+        return NULL;
+    }
+
     char *normalized_K = normalize_secret (K);
     if (normalized_K == NULL) {
+        *err_code = MEMORY_ALLOCATION_ERROR;
+        return NULL;
+    }
+
+    if (normalized_K[0] == '\0') {
+        free(normalized_K);
+        *err_code = EMPTY_STRING;
         return NULL;
     }
 
     size_t secret_len = b32_decoded_len_from_str(normalized_K);
 
-    cotp_error_t err;
-    unsigned char *secret = base32_decode (normalized_K, strlen(normalized_K), &err);
+    unsigned char *secret = base32_decode (normalized_K, strlen(normalized_K), err_code);
     free (normalized_K);
     if (secret == NULL) {
+        return NULL;
+    }
+    if (*err_code != NO_ERROR) {
+        cotp_secure_memzero(secret, secret_len);
+        free(secret);
         return NULL;
     }
 
     unsigned char C_reverse_byte_order[8];
     REVERSE_BYTES(C, C_reverse_byte_order);
 
-    err = whmac_setkey (hd, secret, secret_len);
+    cotp_error_t err = whmac_setkey (hd, secret, secret_len);
     if (err) {
         fprintf (stderr, "Error while setting the cipher key.\n");
         cotp_secure_memzero(secret, secret_len);
         free (secret);
+        *err_code = WHMAC_ERROR;
         return NULL;
     }
     whmac_update (hd, C_reverse_byte_order, sizeof(C_reverse_byte_order));
@@ -335,6 +395,7 @@ compute_hmac (const char *K,
         fprintf (stderr, "Error allocating memory");
         cotp_secure_memzero(secret, secret_len);
         free (secret);
+        *err_code = MEMORY_ALLOCATION_ERROR;
         return NULL;
     }
 
@@ -345,6 +406,7 @@ compute_hmac (const char *K,
         free (hmac);
         cotp_secure_memzero(secret, secret_len);
         free (secret);
+        *err_code = WHMAC_ERROR;
         return NULL;
     }
     cotp_secure_memzero(secret, secret_len);

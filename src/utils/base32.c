@@ -229,7 +229,7 @@ has_space (const char *str)
 static int
 get_char_index (uint8_t c)
 {
-    for (int i = 0; i < sizeof(b32_alphabet); i++) {
+    for (int i = 0; i < (int)(sizeof(b32_alphabet) - 1); i++) {
         if (b32_alphabet[i] == c) {
             return i;
         }
