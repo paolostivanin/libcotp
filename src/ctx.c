@@ -15,7 +15,7 @@ cotp_ctx* cotp_ctx_create(int digits, int period, int sha_algo)
     if (period <= 0 || period > 120) {
         return NULL;
     }
-    if (sha_algo != SHA1 && sha_algo != SHA256 && sha_algo != SHA512) {
+    if (sha_algo != COTP_SHA1 && sha_algo != COTP_SHA256 && sha_algo != COTP_SHA512) {
         return NULL;
     }
 

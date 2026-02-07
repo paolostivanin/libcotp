@@ -93,7 +93,7 @@ Example:
 
 ```c
 cotp_error_t err;
-char *code = get_totp("HXDMVJECJJWSRB3HWIZR4IFUGFTMXBOZ", 6, 30, SHA1, &err);
+char *code = get_totp("HXDMVJECJJWSRB3HWIZR4IFUGFTMXBOZ", 6, 30, COTP_SHA1, &err);
 if (!code) {
     // handle error
 }

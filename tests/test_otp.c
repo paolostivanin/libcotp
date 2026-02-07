@@ -307,7 +307,7 @@ Test(totp_int, test_err_invalid_characters) {
 
 Test(totp_generic, test_null_secret) {
     cotp_error_t err;
-    char *totp = get_totp (NULL, 6, 30, SHA1, &err);
+    char *totp = get_totp (NULL, 6, 30, COTP_SHA1, &err);
 
     cr_expect_eq (err, INVALID_USER_INPUT, "Expected %d to be equal to %d\n", err, INVALID_USER_INPUT);
     cr_assert_null (totp);
