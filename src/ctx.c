@@ -9,6 +9,16 @@ struct cotp_ctx {
 
 cotp_ctx* cotp_ctx_create(int digits, int period, int sha_algo)
 {
+    if (digits < MIN_DIGTS || digits > MAX_DIGITS) {
+        return NULL;
+    }
+    if (period <= 0 || period > 120) {
+        return NULL;
+    }
+    if (sha_algo != SHA1 && sha_algo != SHA256 && sha_algo != SHA512) {
+        return NULL;
+    }
+
     cotp_ctx* ctx = (cotp_ctx*)calloc(1, sizeof(cotp_ctx));
     if (!ctx) return NULL;
     ctx->digits = digits;
