@@ -2,11 +2,11 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#define SHA1 0
-#define SHA256 1
-#define SHA512 2
+#define COTP_SHA1   0
+#define COTP_SHA256 1
+#define COTP_SHA512 2
 
-#define MIN_DIGTS 4
+#define MIN_DIGITS 4
 #define MAX_DIGITS 10
 
 typedef enum cotp_error {
@@ -25,16 +25,12 @@ typedef enum cotp_error {
     WHMAC_ERROR
 } cotp_error_t;
 
-typedef unsigned char uchar;
-
 // Opaque context for repeated OTP computations (optional ergonomic API)
 typedef struct cotp_ctx cotp_ctx;
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-extern const uint8_t b32_alphabet[];
 
 #ifdef COTP_ENABLE_VALIDATION
 /**
@@ -67,7 +63,7 @@ char*     cotp_ctx_totp(cotp_ctx* ctx, const char* base32_encoded_secret, cotp_e
  * Ownership: returns a newly allocated, NUL-terminated string on success; caller must free() it.
  * On error: returns NULL and sets err_code.
  */
-char    *base32_encode     (const uchar  *user_data,
+char    *base32_encode     (const uint8_t *user_data,
                             size_t        data_len,
                             cotp_error_t *err_code);
 
@@ -78,7 +74,7 @@ char    *base32_encode     (const uchar  *user_data,
  * The returned data preserves the input NUL when the original encoded content represented it.
  * On error: returns NULL and sets err_code.
  */
-uchar   *base32_decode     (const char   *user_data_untrimmed,
+uint8_t *base32_decode     (const char   *user_data_untrimmed,
                             size_t        data_len,
                             cotp_error_t *err_code);
 

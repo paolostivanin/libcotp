@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(cotp VERSION "3.2.1" LANGUAGES "C")
+project(cotp VERSION "4.0.0" LANGUAGES "C")
 
 set(CMAKE_C_STANDARD 11)
 
@@ -40,14 +40,8 @@ elseif("${HMAC_WRAPPER}" STREQUAL "mbedtls")
     set(HMAC_LIBRARIES ${MBEDTLS_LIBRARIES})
     message(STATUS "libcotp: HMAC backend set to mbedtls")
 else()
-    message("libcotp can't use ${HMAC_WRAPPER} for hmac")
+    message(FATAL_ERROR "libcotp: unknown HMAC_WRAPPER '${HMAC_WRAPPER}'. Choose gcrypt, openssl, or mbedtls.")
 endif()
-
-include_directories(${HMAC_INCLUDE_DIR})
-
-if (BUILD_TESTS)
-    add_subdirectory(tests)
-endif ()
 
 set(COTP_HEADERS
         src/cotp.h
@@ -65,17 +59,15 @@ set(SOURCE_FILES
 
 if (COTP_ENABLE_VALIDATION)
     list(APPEND SOURCE_FILES src/utils/validation.c)
-    target_compile_definitions(cotp PUBLIC COTP_ENABLE_VALIDATION)
 endif()
-
-
-add_compile_options(-Wall -Wextra -O3 -Wformat=2 -Wmissing-format-attribute -fstack-protector-strong -Wundef -Wmissing-format-attribute
-        -fdiagnostics-color=always -Wstrict-prototypes -Wunreachable-code -Wchar-subscripts -Wwrite-strings -Wpointer-arith -Wbad-function-cast
-        -Wcast-align -Werror=format-security -Werror=implicit-function-declaration -Wno-sign-compare -Wno-format-nonliteral -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3)
 
 add_library(cotp ${SOURCE_FILES})
 
-target_link_libraries(cotp ${HMAC_LIBRARIES})
+if (COTP_ENABLE_VALIDATION)
+    target_compile_definitions(cotp PUBLIC COTP_ENABLE_VALIDATION)
+endif()
+
+target_link_libraries(cotp PRIVATE ${HMAC_LIBRARIES})
 target_include_directories(cotp
         PUBLIC
             $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
@@ -88,9 +80,12 @@ target_compile_options(cotp PRIVATE
         -fdiagnostics-color=always -Wstrict-prototypes -Wunreachable-code -Wchar-subscripts -Wwrite-strings -Wpointer-arith -Wbad-function-cast
         -Wcast-align -Werror=format-security -Werror=implicit-function-declaration -Wno-sign-compare -Wno-format-nonliteral -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3)
 
-target_link_directories(cotp PRIVATE ${HMACLIBRARY_DIRS})
-
 set_target_properties(cotp PROPERTIES VERSION ${CMAKE_PROJECT_VERSION} SOVERSION ${CMAKE_PROJECT_VERSION_MAJOR})
+
+if (BUILD_TESTS)
+    enable_testing()
+    add_subdirectory(tests)
+endif ()
 
 set(COTP_LIB_DIR "${CMAKE_INSTALL_LIBDIR}")
 set(COTP_INC_DIR "${CMAKE_INSTALL_INCLUDEDIR}")

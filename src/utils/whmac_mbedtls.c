@@ -1,4 +1,3 @@
-#include <stdio.h>
 #include <stdlib.h>
 #include <mbedtls/md.h>
 #include "../whmac.h"
@@ -44,12 +43,11 @@ whmac_gethandle (int algo)
         free (whmac_handle);
         return NULL;
     }
-    
+
     mbedtls_md_init (&(whmac_handle->sha_ctx));
     whmac_handle->md_info = mbedtls_md_info_from_type (openssl_algo[algo]);
     int ret = mbedtls_md_setup (&(whmac_handle->sha_ctx), whmac_handle->md_info, 1);
     if (ret != 0) {
-        printf ("mbedtls_md_setup() returned -0x%04x\n", -ret);
         mbedtls_md_free (&(whmac_handle->sha_ctx));
         free (whmac_handle);
         return NULL;
@@ -61,6 +59,7 @@ whmac_gethandle (int algo)
 void
 whmac_freehandle (whmac_handle_t *hd)
 {
+    if (!hd) return;
     mbedtls_md_free (&(hd->sha_ctx));
     free (hd);
 }
@@ -70,7 +69,10 @@ whmac_setkey (whmac_handle_t *hd,
               const unsigned char *buffer,
               size_t buflen)
 {
-    mbedtls_md_hmac_starts (&(hd->sha_ctx), buffer, buflen);
+    int ret = mbedtls_md_hmac_starts (&(hd->sha_ctx), buffer, buflen);
+    if (ret != 0) {
+        return WHMAC_ERROR;
+    }
     return NO_ERROR;
 }
 
@@ -87,8 +89,16 @@ whmac_finalize (whmac_handle_t *hd,
                 unsigned char *buffer,
                 size_t buflen)
 {
+    size_t dlen = mbedtls_md_get_size(hd->md_info);
+    if (buffer == NULL) {
+        return (ssize_t)dlen;
+    }
+
+    if (dlen > buflen) {
+        return -MEMORY_ALLOCATION_ERROR;
+    }
+
     mbedtls_md_hmac_finish (&(hd->sha_ctx), buffer);
 
-    return buflen;
+    return (ssize_t)dlen;
 }
-

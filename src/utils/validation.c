@@ -1,5 +1,7 @@
 #include <string.h>
+#include <stdlib.h>
 #include "../cotp.h"
+#include "secure_zero.h"
 
 #ifdef COTP_ENABLE_VALIDATION
 
@@ -22,6 +24,8 @@ int validate_totp_in_window(const char* user_code,
     // Normalize window
     if (window < 0) window = -window;
 
+    size_t user_len = strlen(user_code);
+
     // Try [-window, +window]
     for (int delta = -window; delta <= window; ++delta) {
         long t = timestamp + (long)delta * (long)period;
@@ -31,7 +35,8 @@ int validate_totp_in_window(const char* user_code,
             if (err_code) *err_code = err;
             return 0;
         }
-        int ok = (strcmp(gen, user_code) == 0);
+        size_t gen_len = strlen(gen);
+        int ok = (gen_len == user_len) && (cotp_timing_safe_memcmp(gen, user_code, gen_len) == 0);
         free(gen);
         if (ok) {
             if (matched_delta) *matched_delta = delta;

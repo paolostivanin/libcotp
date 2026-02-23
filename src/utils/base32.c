@@ -11,7 +11,36 @@
 // if 64 MB of data is encoded than it should be also possible to decode it. That's why a bigger input is allowed for decoding
 #define MAX_DECODE_BASE32_INPUT_LEN ((MAX_ENCODE_INPUT_LEN * 8 + 4) / 5)
 
-const uint8_t b32_alphabet[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+static const uint8_t b32_alphabet[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+
+// O(1) lookup table for base32 character → index (0-31), -1 for invalid
+static const int8_t b32_char_index[256] = {
+    ['A'] =  0, ['B'] =  1, ['C'] =  2, ['D'] =  3, ['E'] =  4,
+    ['F'] =  5, ['G'] =  6, ['H'] =  7, ['I'] =  8, ['J'] =  9,
+    ['K'] = 10, ['L'] = 11, ['M'] = 12, ['N'] = 13, ['O'] = 14,
+    ['P'] = 15, ['Q'] = 16, ['R'] = 17, ['S'] = 18, ['T'] = 19,
+    ['U'] = 20, ['V'] = 21, ['W'] = 22, ['X'] = 23, ['Y'] = 24,
+    ['Z'] = 25, ['2'] = 26, ['3'] = 27, ['4'] = 28, ['5'] = 29,
+    ['6'] = 30, ['7'] = 31,
+};
+
+// Static const validity table for base32 characters (A-Z, a-z, 2-7, =)
+static const uint8_t b32_valid[128] = {
+    ['A'] = 1, ['B'] = 1, ['C'] = 1, ['D'] = 1, ['E'] = 1,
+    ['F'] = 1, ['G'] = 1, ['H'] = 1, ['I'] = 1, ['J'] = 1,
+    ['K'] = 1, ['L'] = 1, ['M'] = 1, ['N'] = 1, ['O'] = 1,
+    ['P'] = 1, ['Q'] = 1, ['R'] = 1, ['S'] = 1, ['T'] = 1,
+    ['U'] = 1, ['V'] = 1, ['W'] = 1, ['X'] = 1, ['Y'] = 1,
+    ['Z'] = 1,
+    ['a'] = 1, ['b'] = 1, ['c'] = 1, ['d'] = 1, ['e'] = 1,
+    ['f'] = 1, ['g'] = 1, ['h'] = 1, ['i'] = 1, ['j'] = 1,
+    ['k'] = 1, ['l'] = 1, ['m'] = 1, ['n'] = 1, ['o'] = 1,
+    ['p'] = 1, ['q'] = 1, ['r'] = 1, ['s'] = 1, ['t'] = 1,
+    ['u'] = 1, ['v'] = 1, ['w'] = 1, ['x'] = 1, ['y'] = 1,
+    ['z'] = 1,
+    ['2'] = 1, ['3'] = 1, ['4'] = 1, ['5'] = 1,
+    ['6'] = 1, ['7'] = 1, ['='] = 1,
+};
 
 static int           get_char_index (uint8_t        c);
 
@@ -196,14 +225,9 @@ valid_b32_str (const char *str)
         return false;
     }
 
-    uint8_t table[128] = {0};
-    for (const uint8_t *p = b32_alphabet; *p; p++) {
-        table[*p] = 1;
-    }
-    table['='] = 1;
-
     while (*str) {
-        if (!table[(uint8_t)*str]) {
+        uint8_t c = (uint8_t)*str;
+        if (c >= 128 || !b32_valid[c]) {
             return false;
         }
         str++;
@@ -229,10 +253,14 @@ has_space (const char *str)
 static int
 get_char_index (uint8_t c)
 {
-    for (int i = 0; i < (int)(sizeof(b32_alphabet) - 1); i++) {
-        if (b32_alphabet[i] == c) {
-            return i;
-        }
+    if (c >= 'a' && c <= 'z') {
+        c = c - 'a' + 'A';
+    }
+    if (c >= 'A' && c <= 'Z') {
+        return b32_char_index[c];
+    }
+    if (c >= '2' && c <= '7') {
+        return b32_char_index[c];
     }
     return -1;
 }

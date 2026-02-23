@@ -3,7 +3,7 @@
 #include <time.h>
 #include <string.h>
 #include <ctype.h>
-#include <assert.h>
+#include <limits.h>
 #include "whmac.h"
 #include "cotp.h"
 #include "utils/secure_zero.h"
@@ -35,14 +35,14 @@ static size_t b32_decoded_len_from_str(const char *s) {
 
 static char  *normalize_secret (const char  *K);
 
-static char  *get_steam_code   (const uchar *hmac,
+static char  *get_steam_code   (const unsigned char *hmac,
                                 whmac_handle_t *hd);
 
-static int    truncate         (const uchar *hmac,
+static int    truncate_otp     (const unsigned char *hmac,
                                 int          digits_length,
                                 whmac_handle_t *hd);
 
-static uchar *compute_hmac     (const char  *K,
+static unsigned char *compute_hmac (const char  *K,
                                 long         C,
                                 whmac_handle_t *hd,
                                 cotp_error_t *err_code);
@@ -94,7 +94,7 @@ get_hotp (const char   *secret,
 
     whmac_handle_t *hd = whmac_gethandle (algo);
     if (hd == NULL) {
-        fprintf (stderr, "Error while opening the cipher handle.\n");
+        *errp = WHMAC_ERROR;
         return NULL;
     }
 
@@ -105,11 +105,16 @@ get_hotp (const char   *secret,
     }
 
     size_t dlen = whmac_getlen(hd);
-    int tk = truncate (hmac, digits, hd);
+    int tk = truncate_otp (hmac, digits, hd);
     whmac_freehandle (hd);
 
     cotp_secure_memzero(hmac, dlen);
     free (hmac);
+
+    if (tk == INT_MIN) {
+        *errp = WHMAC_ERROR;
+        return NULL;
+    }
 
     *errp = NO_ERROR;
 
@@ -154,7 +159,7 @@ get_totp_at (const char   *secret,
         *errp = err;
         return NULL;
     }
-  
+
     *errp = NO_ERROR;
 
     return totp;
@@ -208,9 +213,9 @@ get_steam_totp_at (const char   *secret,
         return NULL;
     }
 
-    whmac_handle_t *hd = whmac_gethandle (SHA1);
+    whmac_handle_t *hd = whmac_gethandle (COTP_SHA1);
     if (hd == NULL) {
-        fprintf (stderr, "Error while opening the cipher handle.\n");
+        *errp = WHMAC_ERROR;
         return NULL;
     }
     unsigned char *hmac = compute_hmac (secret, current_timestamp / period, hd, errp);
@@ -224,7 +229,11 @@ get_steam_totp_at (const char   *secret,
     size_t dlen = whmac_getlen(hd);
     whmac_freehandle (hd);
 
-    *errp = NO_ERROR;
+    if (totp == NULL) {
+        *errp = WHMAC_ERROR;
+    } else {
+        *errp = NO_ERROR;
+    }
 
     cotp_secure_memzero(hmac, dlen);
     free(hmac);
@@ -246,7 +255,7 @@ otp_to_int (const char   *otp,
     }
 
     size_t len = strlen (otp);
-    if (len < MIN_DIGTS || len > MAX_DIGITS) {
+    if (len < MIN_DIGITS || len > MAX_DIGITS) {
         *errp = INVALID_USER_INPUT;
         return -1;
     }
@@ -273,7 +282,6 @@ normalize_secret (const char *K)
 {
     char *nK = calloc (strlen (K) + 1, 1);
     if (nK == NULL) {
-        fprintf (stderr, "Error during memory allocation\n");
         return nK;
     }
     for (int i = 0, j = 0; K[i] != '\0'; i++) {
@@ -290,9 +298,13 @@ get_steam_code (const unsigned char *hmac,
                 whmac_handle_t *hd)
 {
     size_t hlen = whmac_getlen(hd);
+    if (hlen < 4) {
+        return NULL;
+    }
     int offset = (hmac[hlen-1] & 0x0f);
-    assert(hlen >= 4);
-    assert(offset >= 0 && (size_t)offset + 3 < hlen);
+    if ((size_t)offset + 3 >= hlen) {
+        return NULL;
+    }
 
     // Starting from the offset, take the successive 4 bytes while stripping the topmost bit to prevent it being handled as a signed integer
     uint32_t bin_code = ((uint32_t)(hmac[offset] & 0x7f) << 24) | ((uint32_t)(hmac[offset + 1] & 0xff) << 16) | ((uint32_t)(hmac[offset + 2] & 0xff) << 8) | ((uint32_t)(hmac[offset + 3] & 0xff));
@@ -313,15 +325,19 @@ get_steam_code (const unsigned char *hmac,
 
 
 static int
-truncate (const unsigned char *hmac,
-          int            digits_length,
-          whmac_handle_t *hd)
+truncate_otp (const unsigned char *hmac,
+              int            digits_length,
+              whmac_handle_t *hd)
 {
     // take the lower four bits of the last byte
     size_t hlen = whmac_getlen(hd);
+    if (hlen < 4) {
+        return INT_MIN;
+    }
     int offset = hmac[hlen - 1] & 0x0f;
-    assert(hlen >= 4);
-    assert(offset >= 0 && (size_t)offset + 3 < hlen);
+    if ((size_t)offset + 3 >= hlen) {
+        return INT_MIN;
+    }
 
     // Starting from the offset, take the successive 4 bytes while stripping the topmost bit to prevent it being handled as a signed integer
     uint32_t bin_code = ((uint32_t)(hmac[offset] & 0x7f) << 24) | ((uint32_t)(hmac[offset + 1] & 0xff) << 16) | ((uint32_t)(hmac[offset + 2] & 0xff) << 8) | ((uint32_t)(hmac[offset + 3] & 0xff));
@@ -381,7 +397,6 @@ compute_hmac (const char *K,
 
     cotp_error_t err = whmac_setkey (hd, secret, secret_len);
     if (err) {
-        fprintf (stderr, "Error while setting the cipher key.\n");
         cotp_secure_memzero(secret, secret_len);
         free (secret);
         *err_code = WHMAC_ERROR;
@@ -392,7 +407,6 @@ compute_hmac (const char *K,
     size_t dlen = whmac_getlen (hd);
     unsigned char *hmac = calloc (dlen, 1);
     if (hmac == NULL) {
-        fprintf (stderr, "Error allocating memory");
         cotp_secure_memzero(secret, secret_len);
         free (secret);
         *err_code = MEMORY_ALLOCATION_ERROR;
@@ -401,7 +415,6 @@ compute_hmac (const char *K,
 
     ssize_t flen = whmac_finalize (hd, hmac, dlen);
     if (flen < 0) {
-        fprintf (stderr, "Error getting digest\n");
         cotp_secure_memzero(hmac, dlen);
         free (hmac);
         cotp_secure_memzero(secret, secret_len);
@@ -440,12 +453,12 @@ check_period (int period)
 static int
 check_otp_len (int digits_length)
 {
-    return (digits_length < MIN_DIGTS || digits_length > MAX_DIGITS) ? INVALID_DIGITS : VALID;
+    return (digits_length < MIN_DIGITS || digits_length > MAX_DIGITS) ? INVALID_DIGITS : VALID;
 }
 
 
 static int
 check_algo (int algo)
 {
-    return (algo != SHA1 && algo != SHA256 && algo != SHA512) ? INVALID_ALGO : VALID;
+    return (algo != COTP_SHA1 && algo != COTP_SHA256 && algo != COTP_SHA512) ? INVALID_ALGO : VALID;
 }

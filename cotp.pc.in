@@ -6,6 +6,6 @@ includedir=@PKGCONFIG_TARGET_INCLUDES@
 Name: libcotp
 Description: C library that generates TOTP and HOTP
 Version: @CMAKE_PROJECT_VERSION@
-URL: URL: https://github.com/paolostivanin/libcotp
+URL: https://github.com/paolostivanin/libcotp
 Libs: -L${libdir} -lcotp
 Cflags: -I${includedir}
