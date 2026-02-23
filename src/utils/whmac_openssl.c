@@ -61,6 +61,7 @@ whmac_gethandle (int algo)
 void
 whmac_freehandle (whmac_handle_t *hd)
 {
+    if (!hd) return;
     EVP_MAC_free (hd->mac);
     free (hd);
 }
@@ -71,9 +72,13 @@ whmac_setkey (whmac_handle_t *hd,
               size_t          buflen)
 {
     hd->ctx = EVP_MAC_CTX_new (hd->mac);
-    if (hd->ctx && !EVP_MAC_init (hd->ctx, buffer, buflen, hd->mac_params)) {
-        ERR_print_errors_fp (stderr);
-        return -INVALID_ALGO;
+    if (hd->ctx == NULL) {
+        return WHMAC_ERROR;
+    }
+    if (!EVP_MAC_init (hd->ctx, buffer, buflen, hd->mac_params)) {
+        EVP_MAC_CTX_free (hd->ctx);
+        hd->ctx = NULL;
+        return WHMAC_ERROR;
     }
     hd->dlen = EVP_MAC_CTX_get_mac_size (hd->ctx);
     return NO_ERROR;

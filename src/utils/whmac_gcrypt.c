@@ -14,7 +14,6 @@ whmac_check (void)
 {
     if (!gcry_control (GCRYCTL_INITIALIZATION_FINISHED_P)) {
         if (!gcry_check_version ("1.8.0")) {
-            fprintf (stderr, "libgcrypt v1.8.0 and above is required\n");
             return -1;
         }
         gcry_control (GCRYCTL_DISABLE_SECMEM, 0);
@@ -59,6 +58,7 @@ whmac_gethandle (int algo)
 void
 whmac_freehandle (whmac_handle_t *hd)
 {
+    if (!hd) return;
     gcry_md_close (hd->hd);
     free (hd);
 }
@@ -69,7 +69,7 @@ whmac_setkey (whmac_handle_t *hd,
               size_t          buflen)
 {
     if (gcry_md_setkey (hd->hd, buffer, buflen)) {
-        return -INVALID_ALGO;
+        return WHMAC_ERROR;
     }
     return NO_ERROR;
 }
