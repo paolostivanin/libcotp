@@ -74,7 +74,7 @@ base32_encode (const uint8_t *user_data,
     size_t user_data_chars = 0, total_bits = 0;
     int num_of_equals = 0;
     int null_terminated = false;
-    if (strlen ((char *)user_data) == data_len - 1) {
+    if (user_data[data_len - 1] == '\0' && memchr(user_data, '\0', data_len - 1) == NULL) {
         // the user might give the input with the null byte, we need to check for that
         null_terminated = true;
     }
@@ -270,7 +270,7 @@ static int
 strip_char (char *str)
 {
     const char strip = ' ';
-    uint8_t table[128] = {0};
+    uint8_t table[256] = {0};
     table[(uint8_t)strip] = 1;
 
     int found = 0;

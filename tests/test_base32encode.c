@@ -133,7 +133,7 @@ Test(b32_encode_test, test_input_all_zeroes) {
     char *encoded_str = base32_encode (secret_bytes, 4, &err);
 
     cr_expect_eq (err, NO_ERROR);
-    // TODO: add also str comparison
+    cr_expect (strcmp (encoded_str, "AAAAAAA=") == 0, "Expected %s to be equal to %s", encoded_str, "AAAAAAA=");
 
     free (encoded_str);
 }
