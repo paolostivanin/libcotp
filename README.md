@@ -71,7 +71,7 @@ int64_t otp_to_int(const char *otp,
 - `base32_secret`: Base32 encoded (may contain spaces). `NULL` is invalid.
 - `digits`: 4–10 inclusive
 - `period`: 1–120 seconds inclusive
-- `algo`: `SHA1`, `SHA256`, `SHA512`
+- `algo`: `COTP_SHA1`, `COTP_SHA256`, `COTP_SHA512`
 - `counter`: non-negative
 - `timestamp`: UNIX epoch seconds
 
@@ -93,7 +93,7 @@ Example:
 
 ```c
 cotp_error_t err;
-char *code = get_totp("HXDMVJECJJWSRB3HWIZR4IFUGFTMXBOZ", 6, 30, SHA1, &err);
+char *code = get_totp("HXDMVJECJJWSRB3HWIZR4IFUGFTMXBOZ", 6, 30, COTP_SHA1, &err);
 if (!code) {
     // handle error
 }
