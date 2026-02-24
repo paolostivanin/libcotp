@@ -31,7 +31,7 @@ sudo make install
 |--------|---------|-------------|
 | `-DBUILD_TESTS=ON` | OFF | Build tests |
 | `-DBUILD_SHARED_LIBS=OFF` | ON | Build static instead of shared |
-| `-DHMAC_WRAPPER=<gcrypt|openssl|mbedtls>` | gcrypt | Select crypto backend |
+| `-DHMAC_WRAPPER=<gcrypt, openssl, mbedtls>` | gcrypt | Select crypto backend |
 | `-DCOTP_ENABLE_VALIDATION=ON` | OFF | Enable validation helper APIs |
 
 ---
