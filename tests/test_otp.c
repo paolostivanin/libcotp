@@ -31,8 +31,10 @@ Test(totp_rfc6238, test_8_digits_sha1_toint) {
 
     cotp_error_t err;
     for (int i = 0; i < 6; i++) {
-        int64_t totp = otp_to_int (get_totp_at (K_base32, counter[i], 8, 30, COTP_SHA1, &err), &err);
+        char *totp_str = get_totp_at (K_base32, counter[i], 8, 30, COTP_SHA1, &err);
+        int64_t totp = otp_to_int (totp_str, &err);
         cr_expect_eq (totp, expected_totp[i], "Expected %08ld to be equal to %08ld\n", totp, expected_totp[i]);
+        free (totp_str);
     }
     free (K_base32);
 }
@@ -63,9 +65,11 @@ Test(totp_rfc6238, test_10_digits_sha1_toint) {
     char *K_base32 = base32_encode ((const uint8_t *)K, strlen(K)+1, &cotp_err);
 
     cotp_error_t err;
-    int64_t totp = otp_to_int (get_totp_at (K_base32, counter, 10, 30, COTP_SHA1, &err), &err);
+    char *totp_str = get_totp_at (K_base32, counter, 10, 30, COTP_SHA1, &err);
+    int64_t totp = otp_to_int (totp_str, &err);
     cr_expect_eq (totp, expected_totp, "Expected %010ld to be equal to %010ld\n", totp, expected_totp);
 
+    free (totp_str);
     free (K_base32);
 }
 
@@ -274,9 +278,11 @@ Test(totp_int, test_err_is_missing_zero) {
     char *K_base32 = base32_encode ((const uint8_t *)K, strlen(K)+1, &cotp_err);
 
     cotp_error_t err;
-    int64_t totp = otp_to_int (get_totp_at (K_base32, counter, 10, 30, COTP_SHA1, &err), &err);
+    char *totp_str = get_totp_at (K_base32, counter, 10, 30, COTP_SHA1, &err);
+    int64_t totp = otp_to_int (totp_str, &err);
     cr_expect_eq (err, MISSING_LEADING_ZERO, "Expected %d to be equal to %d\n", err, MISSING_LEADING_ZERO);
 
+    free (totp_str);
     free (K_base32);
 }
 
@@ -311,4 +317,215 @@ Test(totp_generic, test_null_secret) {
 
     cr_expect_eq (err, INVALID_USER_INPUT, "Expected %d to be equal to %d\n", err, INVALID_USER_INPUT);
     cr_assert_null (totp);
+}
+
+
+Test(totp_generic, test_empty_secret) {
+    cotp_error_t err;
+    char *totp = get_totp ("", 6, 30, COTP_SHA1, &err);
+
+    cr_expect_eq (err, EMPTY_STRING, "Expected %d to be equal to %d\n", err, EMPTY_STRING);
+    cr_assert_null (totp);
+}
+
+
+Test(totp_boundary, test_min_digits) {
+    const char *K = "12345678901234567890";
+
+    cotp_error_t cotp_err;
+    char *K_base32 = base32_encode ((const uint8_t *)K, strlen(K)+1, &cotp_err);
+
+    cotp_error_t err;
+    char *totp = get_totp_at (K_base32, 59, 4, 30, COTP_SHA1, &err);
+    cr_expect_eq (err, NO_ERROR, "Expected %d to be equal to %d\n", err, NO_ERROR);
+    cr_assert_not_null (totp);
+    cr_expect_eq (strlen(totp), 4, "Expected length 4, got %zu\n", strlen(totp));
+
+    free (totp);
+    free (K_base32);
+}
+
+
+Test(totp_boundary, test_max_digits) {
+    const char *K = "12345678901234567890";
+    const char *expected_totp = "0689005924";
+
+    cotp_error_t cotp_err;
+    char *K_base32 = base32_encode ((const uint8_t *)K, strlen(K)+1, &cotp_err);
+
+    cotp_error_t err;
+    char *totp = get_totp_at (K_base32, 1234567890, 10, 30, COTP_SHA1, &err);
+    cr_expect_eq (err, NO_ERROR, "Expected %d to be equal to %d\n", err, NO_ERROR);
+    cr_assert_not_null (totp);
+    cr_expect_eq (strlen(totp), 10, "Expected length 10, got %zu\n", strlen(totp));
+    cr_expect_str_eq (totp, expected_totp, "Expected %s to be equal to %s\n", totp, expected_totp);
+
+    free (totp);
+    free (K_base32);
+}
+
+
+Test(totp_boundary, test_min_period) {
+    const char *K = "12345678901234567890";
+
+    cotp_error_t cotp_err;
+    char *K_base32 = base32_encode ((const uint8_t *)K, strlen(K)+1, &cotp_err);
+
+    cotp_error_t err;
+    char *totp = get_totp_at (K_base32, 59, 6, 1, COTP_SHA1, &err);
+    cr_expect_eq (err, NO_ERROR, "Expected %d to be equal to %d\n", err, NO_ERROR);
+    cr_assert_not_null (totp);
+
+    free (totp);
+    free (K_base32);
+}
+
+
+Test(totp_boundary, test_max_period) {
+    const char *K = "12345678901234567890";
+
+    cotp_error_t cotp_err;
+    char *K_base32 = base32_encode ((const uint8_t *)K, strlen(K)+1, &cotp_err);
+
+    cotp_error_t err;
+    char *totp = get_totp_at (K_base32, 59, 6, 120, COTP_SHA1, &err);
+    cr_expect_eq (err, NO_ERROR, "Expected %d to be equal to %d\n", err, NO_ERROR);
+    cr_assert_not_null (totp);
+
+    free (totp);
+    free (K_base32);
+}
+
+
+Test(totp_boundary, test_period_over_max) {
+    const char *K = "12345678901234567890";
+
+    cotp_error_t cotp_err;
+    char *K_base32 = base32_encode ((const uint8_t *)K, strlen(K)+1, &cotp_err);
+
+    cotp_error_t err;
+    char *totp = get_totp_at (K_base32, 59, 6, 121, COTP_SHA1, &err);
+    cr_expect_eq (err, INVALID_PERIOD, "Expected %d to be equal to %d\n", err, INVALID_PERIOD);
+    cr_assert_null (totp);
+
+    free (K_base32);
+}
+
+
+Test(totp_boundary, test_digits_below_min) {
+    const char *K = "12345678901234567890";
+
+    cotp_error_t cotp_err;
+    char *K_base32 = base32_encode ((const uint8_t *)K, strlen(K)+1, &cotp_err);
+
+    cotp_error_t err;
+    char *totp = get_totp_at (K_base32, 59, 3, 30, COTP_SHA1, &err);
+    cr_expect_eq (err, INVALID_DIGITS, "Expected %d to be equal to %d\n", err, INVALID_DIGITS);
+    cr_assert_null (totp);
+
+    free (K_base32);
+}
+
+
+Test(totp_boundary, test_digits_above_max) {
+    const char *K = "12345678901234567890";
+
+    cotp_error_t cotp_err;
+    char *K_base32 = base32_encode ((const uint8_t *)K, strlen(K)+1, &cotp_err);
+
+    cotp_error_t err;
+    char *totp = get_totp_at (K_base32, 59, 11, 30, COTP_SHA1, &err);
+    cr_expect_eq (err, INVALID_DIGITS, "Expected %d to be equal to %d\n", err, INVALID_DIGITS);
+    cr_assert_null (totp);
+
+    free (K_base32);
+}
+
+
+// Context API tests (T2)
+Test(ctx_api, test_create_valid) {
+    cotp_ctx *ctx = cotp_ctx_create (6, 30, COTP_SHA1);
+    cr_assert_not_null (ctx);
+    cotp_ctx_free (ctx);
+}
+
+
+Test(ctx_api, test_create_all_algos) {
+    cotp_ctx *ctx1 = cotp_ctx_create (6, 30, COTP_SHA1);
+    cotp_ctx *ctx2 = cotp_ctx_create (6, 30, COTP_SHA256);
+    cotp_ctx *ctx3 = cotp_ctx_create (6, 30, COTP_SHA512);
+    cr_assert_not_null (ctx1);
+    cr_assert_not_null (ctx2);
+    cr_assert_not_null (ctx3);
+    cotp_ctx_free (ctx1);
+    cotp_ctx_free (ctx2);
+    cotp_ctx_free (ctx3);
+}
+
+
+Test(ctx_api, test_create_invalid_digits) {
+    cotp_ctx *ctx = cotp_ctx_create (3, 30, COTP_SHA1);
+    cr_assert_null (ctx);
+
+    ctx = cotp_ctx_create (11, 30, COTP_SHA1);
+    cr_assert_null (ctx);
+}
+
+
+Test(ctx_api, test_create_invalid_period) {
+    cotp_ctx *ctx = cotp_ctx_create (6, 0, COTP_SHA1);
+    cr_assert_null (ctx);
+
+    ctx = cotp_ctx_create (6, -1, COTP_SHA1);
+    cr_assert_null (ctx);
+
+    ctx = cotp_ctx_create (6, 121, COTP_SHA1);
+    cr_assert_null (ctx);
+}
+
+
+Test(ctx_api, test_create_invalid_algo) {
+    cotp_ctx *ctx = cotp_ctx_create (6, 30, 3);
+    cr_assert_null (ctx);
+
+    ctx = cotp_ctx_create (6, 30, -1);
+    cr_assert_null (ctx);
+}
+
+
+Test(ctx_api, test_totp_at) {
+    const char *K = "12345678901234567890";
+    const char *expected_totp = "94287082";
+
+    cotp_error_t cotp_err;
+    char *K_base32 = base32_encode ((const uint8_t *)K, strlen(K)+1, &cotp_err);
+
+    cotp_ctx *ctx = cotp_ctx_create (8, 30, COTP_SHA1);
+    cr_assert_not_null (ctx);
+
+    cotp_error_t err;
+    char *totp = cotp_ctx_totp_at (ctx, K_base32, 59, &err);
+    cr_expect_eq (err, NO_ERROR, "Expected %d to be equal to %d\n", err, NO_ERROR);
+    cr_expect_str_eq (totp, expected_totp, "Expected %s to be equal to %s\n", totp, expected_totp);
+
+    free (totp);
+    cotp_ctx_free (ctx);
+    free (K_base32);
+}
+
+
+Test(ctx_api, test_null_ctx) {
+    cotp_error_t err;
+    char *totp = cotp_ctx_totp_at (NULL, "secret", 59, &err);
+    cr_expect_eq (err, INVALID_USER_INPUT, "Expected %d to be equal to %d\n", err, INVALID_USER_INPUT);
+    cr_assert_null (totp);
+
+    totp = cotp_ctx_totp (NULL, "secret", &err);
+    cr_expect_eq (err, INVALID_USER_INPUT, "Expected %d to be equal to %d\n", err, INVALID_USER_INPUT);
+    cr_assert_null (totp);
+}
+
+
+Test(ctx_api, test_free_null) {
+    cotp_ctx_free (NULL);
 }

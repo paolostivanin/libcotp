@@ -50,7 +50,7 @@ static bool          has_space      (const char *str);
 
 static cotp_error_t  check_input    (const uint8_t *user_data,
                                      size_t         data_len,
-                                     int32_t        max_len);
+                                     size_t         max_len);
 
 static int           strip_char     (char          *str);
 
@@ -225,12 +225,35 @@ valid_b32_str (const char *str)
         return false;
     }
 
+    size_t len = 0;
+    size_t pad_count = 0;
+    bool seen_pad = false;
+
     while (*str) {
         uint8_t c = (uint8_t)*str;
         if (c >= 128 || !b32_valid[c]) {
             return false;
         }
+        if (c == '=') {
+            seen_pad = true;
+            pad_count++;
+        } else if (seen_pad) {
+            // data character after padding is invalid per RFC 4648
+            return false;
+        }
+        len++;
         str++;
+    }
+
+    // If padding is present, validate count: valid padding counts are 0, 1, 3, 4, 6
+    if (seen_pad) {
+        if (pad_count == 2 || pad_count == 5 || pad_count == 7 || pad_count > 6) {
+            return false;
+        }
+        // total length (data + padding) must be a multiple of 8
+        if (len % 8 != 0) {
+            return false;
+        }
     }
 
     return true;
@@ -290,7 +313,7 @@ strip_char (char *str)
 static cotp_error_t
 check_input (const uint8_t *user_data,
              size_t         data_len,
-             int32_t        max_len)
+             size_t         max_len)
 {
     if (!user_data || data_len > max_len) {
         return INVALID_USER_INPUT;

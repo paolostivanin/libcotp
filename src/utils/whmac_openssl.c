@@ -37,7 +37,7 @@ whmac_gethandle (int algo)
     };
 
     whmac_handle_t *whmac_handle = NULL;
-    if (algo > 2) {
+    if (algo < 0 || algo > 2) {
         return NULL;
     }
 
@@ -45,6 +45,7 @@ whmac_gethandle (int algo)
     if (mac != NULL) {
         whmac_handle = calloc (1, sizeof(*whmac_handle));
         if (whmac_handle == NULL) {
+            EVP_MAC_free (mac);
             return NULL;
         }
         whmac_handle->mac = mac;
@@ -62,6 +63,9 @@ void
 whmac_freehandle (whmac_handle_t *hd)
 {
     if (!hd) return;
+    if (hd->ctx) {
+        EVP_MAC_CTX_free (hd->ctx);
+    }
     EVP_MAC_free (hd->mac);
     free (hd);
 }
@@ -103,6 +107,8 @@ whmac_finalize(whmac_handle_t *hd,
     }
 
     if (dlen > buflen) {
+        EVP_MAC_CTX_free (hd->ctx);
+        hd->ctx = NULL;
         return -MEMORY_ALLOCATION_ERROR;
     }
 

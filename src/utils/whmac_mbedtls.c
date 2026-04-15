@@ -39,7 +39,7 @@ whmac_gethandle (int algo)
         return NULL;
     }
 
-    if (algo > 2) {
+    if (algo < 0 || algo > 2) {
         free (whmac_handle);
         return NULL;
     }

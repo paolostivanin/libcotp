@@ -21,14 +21,18 @@ static size_t b32_decoded_len_from_str(const char *s) {
 
 #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 #define REVERSE_BYTES(C, C_reverse_byte_order)           \
-        for (int j = 0, i = 7; j < 8; j++, i--) {            \
+    do {                                                     \
+        for (int j = 0, i = 7; j < 8; j++, i--) {           \
             (C_reverse_byte_order)[i] = ((unsigned char *)&(C))[j]; \
-        }
+        }                                                    \
+    } while (0)
 #elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
 #define REVERSE_BYTES(C, C_reverse_byte_order)           \
+    do {                                                     \
         for (int j = 0; j < 8; j++) {                        \
             (C_reverse_byte_order)[j] = ((unsigned char *)&(C))[j]; \
-        }
+        }                                                    \
+    } while (0)
 #else
     #error "Unknown endianness"
 #endif
@@ -374,6 +378,7 @@ compute_hmac (const char *K,
     }
 
     if (normalized_K[0] == '\0') {
+        cotp_secure_memzero(normalized_K, 1);
         free(normalized_K);
         *err_code = EMPTY_STRING;
         return NULL;
@@ -381,7 +386,9 @@ compute_hmac (const char *K,
 
     size_t secret_len = b32_decoded_len_from_str(normalized_K);
 
-    unsigned char *secret = base32_decode (normalized_K, strlen(normalized_K), err_code);
+    size_t normalized_K_len = strlen(normalized_K);
+    unsigned char *secret = base32_decode (normalized_K, normalized_K_len, err_code);
+    cotp_secure_memzero(normalized_K, normalized_K_len);
     free (normalized_K);
     if (secret == NULL) {
         return NULL;

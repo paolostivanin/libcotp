@@ -126,3 +126,41 @@ Test(b32_decode_test, byte_array_all_zeroes) {
 
     free (binary);
 }
+
+
+Test(b32_decode_test, b32_padding_in_middle) {
+    cotp_error_t err;
+    const char *k = "MY=W======";
+
+    uint8_t *dk = base32_decode (k, strlen(k), &err);
+
+    cr_expect_null (dk, "Expected NULL for padding in middle of string");
+    cr_expect_eq (err, INVALID_B32_INPUT);
+}
+
+
+Test(b32_decode_test, b32_invalid_padding_count) {
+    cotp_error_t err;
+    // 2 padding chars is never valid in base32
+    const char *k = "MZXW6Y==";
+
+    uint8_t *dk = base32_decode (k, strlen(k), &err);
+
+    cr_expect_null (dk, "Expected NULL for invalid padding count");
+    cr_expect_eq (err, INVALID_B32_INPUT);
+}
+
+
+Test(b32_decode_test, b32_no_padding_valid) {
+    cotp_error_t err;
+    // No padding at all is accepted (common for OTP secrets)
+    const char *k = "MZXW6YTBOI";
+    const char *expected = "foobar";
+
+    uint8_t *dk = base32_decode (k, strlen(k), &err);
+
+    cr_expect_eq (err, NO_ERROR);
+    cr_expect_str_eq ((char *)dk, expected, "Expected %s to be equal to %s", dk, expected);
+
+    free (dk);
+}

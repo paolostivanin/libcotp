@@ -36,7 +36,9 @@ int validate_totp_in_window(const char* user_code,
             return 0;
         }
         size_t gen_len = strlen(gen);
-        int ok = (gen_len == user_len) && (cotp_timing_safe_memcmp(gen, user_code, gen_len) == 0);
+        int len_match = (gen_len == user_len);
+        int cmp_match = (cotp_timing_safe_memcmp(gen, user_code, gen_len < user_len ? gen_len : user_len) == 0);
+        int ok = len_match && cmp_match;
         free(gen);
         if (ok) {
             if (matched_delta) *matched_delta = delta;

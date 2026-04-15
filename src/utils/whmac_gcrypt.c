@@ -39,7 +39,7 @@ whmac_gethandle (int algo)
 
     whmac_handle_t *whmac_handle = NULL;
     gcry_md_hd_t hd;
-    if (algo > 2) {
+    if (algo < 0 || algo > 2) {
         return NULL;
     }
     gpg_error_t gpg_err = gcry_md_open (&hd, gcrypt_algo[algo], GCRY_MD_FLAG_HMAC);

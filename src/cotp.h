@@ -2,6 +2,12 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#if defined(__GNUC__) || defined(__clang__)
+    #define COTP_API __attribute__((visibility("default")))
+#else
+    #define COTP_API
+#endif
+
 #define COTP_SHA1   0
 #define COTP_SHA256 1
 #define COTP_SHA512 2
@@ -40,7 +46,7 @@ extern "C" {
  * Returns 1 if it matches for any offset in [-window, +window], 0 otherwise.
  * On success and match, sets matched_delta to the offset that matched (may be 0). On general failure, returns 0 and sets err_code.
  */
-int validate_totp_in_window(const char* user_code,
+COTP_API int validate_totp_in_window(const char* user_code,
                             const char* base32_encoded_secret,
                             long        timestamp,
                             int         digits,
@@ -52,10 +58,10 @@ int validate_totp_in_window(const char* user_code,
 #endif
 
 // Context helpers
-cotp_ctx* cotp_ctx_create(int digits, int period, int sha_algo);
-void      cotp_ctx_free(cotp_ctx* ctx);
-char*     cotp_ctx_totp_at(cotp_ctx* ctx, const char* base32_encoded_secret, long timestamp, cotp_error_t* err);
-char*     cotp_ctx_totp(cotp_ctx* ctx, const char* base32_encoded_secret, cotp_error_t* err);
+COTP_API cotp_ctx* cotp_ctx_create(int digits, int period, int sha_algo);
+COTP_API void      cotp_ctx_free(cotp_ctx* ctx);
+COTP_API char*     cotp_ctx_totp_at(cotp_ctx* ctx, const char* base32_encoded_secret, long timestamp, cotp_error_t* err);
+COTP_API char*     cotp_ctx_totp(cotp_ctx* ctx, const char* base32_encoded_secret, cotp_error_t* err);
 
 /**
  * base32_encode
@@ -63,7 +69,7 @@ char*     cotp_ctx_totp(cotp_ctx* ctx, const char* base32_encoded_secret, cotp_e
  * Ownership: returns a newly allocated, NUL-terminated string on success; caller must free() it.
  * On error: returns NULL and sets err_code.
  */
-char    *base32_encode     (const uint8_t *user_data,
+COTP_API char    *base32_encode     (const uint8_t *user_data,
                             size_t        data_len,
                             cotp_error_t *err_code);
 
@@ -74,7 +80,7 @@ char    *base32_encode     (const uint8_t *user_data,
  * The returned data preserves the input NUL when the original encoded content represented it.
  * On error: returns NULL and sets err_code.
  */
-uint8_t *base32_decode     (const char   *user_data_untrimmed,
+COTP_API uint8_t *base32_decode     (const char   *user_data_untrimmed,
                             size_t        data_len,
                             cotp_error_t *err_code);
 
@@ -83,7 +89,7 @@ uint8_t *base32_decode     (const char   *user_data_untrimmed,
  *
  * Checks whether a string is valid Base32 (ignoring ASCII spaces). Does not allocate.
  */
-bool     is_string_valid_b32 (const char *user_data);
+COTP_API bool     is_string_valid_b32 (const char *user_data);
 
 /**
  * get_hotp
@@ -91,7 +97,7 @@ bool     is_string_valid_b32 (const char *user_data);
  * Ownership: returns a newly allocated, zero-padded OTP string of requested width; caller must free().
  * On error: returns NULL and sets err_code.
  */
-char    *get_hotp          (const char   *base32_encoded_secret,
+COTP_API char    *get_hotp          (const char   *base32_encoded_secret,
                             long          counter,
                             int           digits,
                             int           sha_algo,
@@ -103,7 +109,7 @@ char    *get_hotp          (const char   *base32_encoded_secret,
  * Ownership: returns a newly allocated, zero-padded OTP string; caller must free().
  * On error: returns NULL and sets err_code.
  */
-char    *get_totp          (const char   *base32_encoded_secret,
+COTP_API char    *get_totp          (const char   *base32_encoded_secret,
                             int           digits,
                             int           period,
                             int           sha_algo,
@@ -115,7 +121,7 @@ char    *get_totp          (const char   *base32_encoded_secret,
  * Ownership: returns a newly allocated Steam-style OTP string; caller must free().
  * On error: returns NULL and sets err_code.
  */
-char    *get_steam_totp    (const char   *base32_encoded_secret,
+COTP_API char    *get_steam_totp    (const char   *base32_encoded_secret,
                             int          period,
                             cotp_error_t *err_code);
 
@@ -125,7 +131,7 @@ char    *get_steam_totp    (const char   *base32_encoded_secret,
  * Ownership: returns a newly allocated, zero-padded OTP string; caller must free().
  * On error: returns NULL and sets err_code.
  */
-char    *get_totp_at       (const char   *base32_encoded_secret,
+COTP_API char    *get_totp_at       (const char   *base32_encoded_secret,
                             long          time,
                             int           digits,
                             int           period,
@@ -138,7 +144,7 @@ char    *get_totp_at       (const char   *base32_encoded_secret,
  * Ownership: returns a newly allocated Steam-style OTP string; caller must free().
  * On error: returns NULL and sets err_code.
  */
-char    *get_steam_totp_at (const char   *base32_encoded_secret,
+COTP_API char    *get_steam_totp_at (const char   *base32_encoded_secret,
                             long          timestamp,
                             int           period,
                             cotp_error_t *err_code);
@@ -150,7 +156,7 @@ char    *get_steam_totp_at (const char   *base32_encoded_secret,
  * the returned integer will naturally drop them; err_code is set to MISSING_LEADING_ZERO in that case.
  * On invalid input returns -1 and sets err_code to INVALID_USER_INPUT.
  */
-int64_t  otp_to_int        (const char   *otp,
+COTP_API int64_t  otp_to_int        (const char   *otp,
                             cotp_error_t *err_code);
 
 #ifdef __cplusplus

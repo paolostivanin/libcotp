@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(cotp VERSION "4.0.0" LANGUAGES "C")
+project(cotp VERSION "4.0.1" LANGUAGES "C")
 
 set(CMAKE_C_STANDARD 11)
 
@@ -7,6 +7,9 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
+include(CheckFunctionExists)
+
+check_function_exists(explicit_bzero HAVE_EXPLICIT_BZERO)
 
 find_package(PkgConfig)
 
@@ -63,6 +66,10 @@ endif()
 
 add_library(cotp ${SOURCE_FILES})
 
+if (HAVE_EXPLICIT_BZERO)
+    target_compile_definitions(cotp PRIVATE HAVE_EXPLICIT_BZERO)
+endif()
+
 if (COTP_ENABLE_VALIDATION)
     target_compile_definitions(cotp PUBLIC COTP_ENABLE_VALIDATION)
 endif()
@@ -78,7 +85,10 @@ target_include_directories(cotp
 target_compile_options(cotp PRIVATE
         -Wall -Wextra -O3 -Wformat=2 -Wmissing-format-attribute -fstack-protector-strong -Wundef -Wmissing-format-attribute
         -fdiagnostics-color=always -Wstrict-prototypes -Wunreachable-code -Wchar-subscripts -Wwrite-strings -Wpointer-arith -Wbad-function-cast
-        -Wcast-align -Werror=format-security -Werror=implicit-function-declaration -Wno-sign-compare -Wno-format-nonliteral -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3)
+        -Wcast-align -Werror=format-security -Werror=implicit-function-declaration -Wno-sign-compare -Wno-format-nonliteral -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3
+        -fvisibility=hidden)
+
+target_link_options(cotp PRIVATE -Wl,-z,relro,-z,now -Wl,-z,noexecstack)
 
 set_target_properties(cotp PROPERTIES VERSION ${CMAKE_PROJECT_VERSION} SOVERSION ${CMAKE_PROJECT_VERSION_MAJOR})
 
