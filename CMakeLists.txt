@@ -89,7 +89,9 @@ target_compile_options(cotp PRIVATE
         -fvisibility=hidden)
 
 if(NOT APPLE)
-    target_link_options(cotp PRIVATE -Wl,-z,relro,-z,now -Wl,-z,noexecstack)
+    target_link_options(cotp PRIVATE
+            "LINKER:-z,relro,-z,now"
+            "LINKER:-z,noexecstack")
 endif()
 
 set_target_properties(cotp PROPERTIES VERSION ${CMAKE_PROJECT_VERSION} SOVERSION ${CMAKE_PROJECT_VERSION_MAJOR})
