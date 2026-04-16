@@ -88,14 +88,8 @@ target_compile_options(cotp PRIVATE
         -Wcast-align -Werror=format-security -Werror=implicit-function-declaration -Wno-sign-compare -Wno-format-nonliteral -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3
         -fvisibility=hidden)
 
-if(APPLE)
-    target_link_options(cotp PRIVATE
-            "LINKER:-dead_strip"
-            "LINKER:-undefined,error")
-elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-    target_link_options(cotp PRIVATE
-            "LINKER:-z,relro,-z,now"
-            "LINKER:-z,noexecstack")
+if(NOT APPLE)
+    target_link_options(cotp PRIVATE -Wl,-z,relro,-z,now -Wl,-z,noexecstack)
 endif()
 
 set_target_properties(cotp PROPERTIES VERSION ${CMAKE_PROJECT_VERSION} SOVERSION ${CMAKE_PROJECT_VERSION_MAJOR})
