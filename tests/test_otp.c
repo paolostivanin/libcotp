@@ -532,6 +532,106 @@ Test(ctx_api, test_free_null) {
 }
 
 
+Test(ctx_api, test_hotp) {
+    // RFC 4226 Appendix D: counter=0 => "755224"
+    const char *K = "12345678901234567890";
+
+    cotp_error_t cotp_err;
+    char *K_base32 = base32_encode ((const uint8_t *)K, strlen(K)+1, &cotp_err);
+
+    cotp_ctx *ctx = cotp_ctx_create (6, 30, COTP_SHA1);
+    cr_assert_not_null (ctx);
+
+    cotp_error_t err = NO_ERROR;
+    char *hotp = cotp_ctx_hotp (ctx, K_base32, 0, &err);
+    cr_expect_eq (err, NO_ERROR);
+    cr_expect_str_eq (hotp, "755224");
+
+    free (hotp);
+    cotp_ctx_free (ctx);
+    free (K_base32);
+}
+
+
+Test(ctx_api, test_hotp_null_ctx) {
+    cotp_error_t err = NO_ERROR;
+    char *hotp = cotp_ctx_hotp (NULL, "secret", 0, &err);
+    cr_expect_null (hotp);
+    cr_expect_eq (err, INVALID_USER_INPUT);
+}
+
+
+Test(ctx_api, test_steam_totp_at) {
+    const char *secret = "ON2XAZLSMR2XAZLSONSWG4TFOQ======";
+    cotp_ctx *ctx = cotp_ctx_create (5, 30, COTP_SHA1);
+    cr_assert_not_null (ctx);
+
+    cotp_error_t err = NO_ERROR;
+    char *totp = cotp_ctx_steam_totp_at (ctx, secret, 3000030, &err);
+    cr_expect_eq (err, NO_ERROR);
+    cr_expect_str_eq (totp, "YRGQJ");
+
+    free (totp);
+    cotp_ctx_free (ctx);
+}
+
+
+Test(ctx_api, test_steam_totp_null_ctx) {
+    cotp_error_t err = NO_ERROR;
+    char *totp = cotp_ctx_steam_totp (NULL, "secret", &err);
+    cr_expect_null (totp);
+    cr_expect_eq (err, INVALID_USER_INPUT);
+
+    err = NO_ERROR;
+    totp = cotp_ctx_steam_totp_at (NULL, "secret", 0, &err);
+    cr_expect_null (totp);
+    cr_expect_eq (err, INVALID_USER_INPUT);
+}
+
+
+#ifdef COTP_ENABLE_VALIDATION
+Test(ctx_api, test_validate_totp) {
+    const char *K = "12345678901234567890";
+
+    cotp_error_t cotp_err;
+    char *K_base32 = base32_encode ((const uint8_t *)K, strlen(K)+1, &cotp_err);
+
+    cotp_ctx *ctx = cotp_ctx_create (8, 30, COTP_SHA1);
+    cr_assert_not_null (ctx);
+
+    cotp_error_t err = NO_ERROR;
+    char *totp = cotp_ctx_totp_at (ctx, K_base32, 59, &err);
+    cr_assert_not_null (totp);
+
+    int matched_delta = -999;
+    int result = cotp_ctx_validate_totp (ctx, totp, K_base32, 59, 1, &matched_delta, &err);
+    cr_expect_eq (result, 1);
+    cr_expect_eq (matched_delta, 0);
+    cr_expect_eq (err, VALID);
+
+    // Validate at one period later with window=1 must still match at delta=-1
+    matched_delta = -999;
+    result = cotp_ctx_validate_totp (ctx, totp, K_base32, 89, 1, &matched_delta, &err);
+    cr_expect_eq (result, 1);
+    cr_expect_eq (matched_delta, -1);
+
+    free (totp);
+    cotp_ctx_free (ctx);
+    free (K_base32);
+}
+
+
+Test(ctx_api, test_validate_totp_null_ctx) {
+    cotp_error_t err = NO_ERROR;
+    int matched_delta = 42;
+    int result = cotp_ctx_validate_totp (NULL, "12345678", "secret", 59, 1, &matched_delta, &err);
+    cr_expect_eq (result, 0);
+    cr_expect_eq (err, INVALID_USER_INPUT);
+    cr_expect_eq (matched_delta, 0);
+}
+#endif
+
+
 // Regression: very large counter must not cause UB in HMAC/truncation pipeline.
 Test(hotp_rfc, test_large_counter) {
     const char *K = "12345678901234567890";

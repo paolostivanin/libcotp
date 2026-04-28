@@ -50,3 +50,50 @@ char* cotp_ctx_totp(cotp_ctx* ctx, const char* base32_encoded_secret, cotp_error
     }
     return get_totp(base32_encoded_secret, ctx->digits, ctx->period, ctx->algo, err);
 }
+
+char* cotp_ctx_hotp(cotp_ctx* ctx, const char* base32_encoded_secret, long counter, cotp_error_t* err)
+{
+    if (!ctx) {
+        if (err) *err = INVALID_USER_INPUT;
+        return NULL;
+    }
+    return get_hotp(base32_encoded_secret, counter, ctx->digits, ctx->algo, err);
+}
+
+char* cotp_ctx_steam_totp(cotp_ctx* ctx, const char* base32_encoded_secret, cotp_error_t* err)
+{
+    if (!ctx) {
+        if (err) *err = INVALID_USER_INPUT;
+        return NULL;
+    }
+    return get_steam_totp(base32_encoded_secret, ctx->period, err);
+}
+
+char* cotp_ctx_steam_totp_at(cotp_ctx* ctx, const char* base32_encoded_secret, long timestamp, cotp_error_t* err)
+{
+    if (!ctx) {
+        if (err) *err = INVALID_USER_INPUT;
+        return NULL;
+    }
+    return get_steam_totp_at(base32_encoded_secret, timestamp, ctx->period, err);
+}
+
+#ifdef COTP_ENABLE_VALIDATION
+int cotp_ctx_validate_totp(cotp_ctx* ctx,
+                           const char*   user_code,
+                           const char*   base32_encoded_secret,
+                           long          timestamp,
+                           int           window,
+                           int*          matched_delta,
+                           cotp_error_t* err)
+{
+    if (!ctx) {
+        if (err) *err = INVALID_USER_INPUT;
+        if (matched_delta) *matched_delta = 0;
+        return 0;
+    }
+    return validate_totp_in_window(user_code, base32_encoded_secret, timestamp,
+                                   ctx->digits, ctx->period, ctx->algo,
+                                   window, matched_delta, err);
+}
+#endif

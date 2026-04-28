@@ -1,5 +1,12 @@
 cmake_minimum_required(VERSION 3.16)
-project(cotp VERSION "4.0.2" LANGUAGES "C")
+project(cotp VERSION "4.1.0" LANGUAGES "C")
+
+# Guard against drift between CMake project version and the COTP_VERSION_STRING macro in cotp.h
+file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/src/cotp.h" _cotp_hdr_ver REGEX "^#define COTP_VERSION_STRING")
+string(REGEX MATCH "\"([0-9]+\\.[0-9]+\\.[0-9]+)\"" _ "${_cotp_hdr_ver}")
+if(NOT "${CMAKE_MATCH_1}" STREQUAL "${PROJECT_VERSION}")
+    message(FATAL_ERROR "cotp.h COTP_VERSION_STRING (${CMAKE_MATCH_1}) does not match project VERSION (${PROJECT_VERSION}). Update both.")
+endif()
 
 set(CMAKE_C_STANDARD 11)
 
@@ -57,7 +64,9 @@ set(SOURCE_FILES
         ${HMAC_SOURCE_FILES}
         src/utils/base32.c
         src/utils/secure_zero.c
+        src/utils/otpauth_uri.c
         src/ctx.c
+        src/strerror.c
 )
 
 if (COTP_ENABLE_VALIDATION)
@@ -99,6 +108,11 @@ set_target_properties(cotp PROPERTIES VERSION ${CMAKE_PROJECT_VERSION} SOVERSION
 if (BUILD_TESTS)
     enable_testing()
     add_subdirectory(tests)
+endif ()
+
+option(COTP_BUILD_FUZZERS "Build libFuzzer harnesses (requires Clang with -fsanitize=fuzzer)" OFF)
+if (COTP_BUILD_FUZZERS)
+    add_subdirectory(fuzz)
 endif ()
 
 set(COTP_LIB_DIR "${CMAKE_INSTALL_LIBDIR}")

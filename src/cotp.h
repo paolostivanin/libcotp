@@ -1,4 +1,5 @@
 #pragma once
+#include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
 
@@ -9,6 +10,12 @@
     #define COTP_API
     #define COTP_WUR
 #endif
+
+#define COTP_VERSION_MAJOR  4
+#define COTP_VERSION_MINOR  1
+#define COTP_VERSION_PATCH  0
+#define COTP_VERSION_STRING "4.1.0"
+#define COTP_VERSION_NUMBER ((COTP_VERSION_MAJOR * 10000) + (COTP_VERSION_MINOR * 100) + COTP_VERSION_PATCH)
 
 #define COTP_SHA1   0
 #define COTP_SHA256 1
@@ -58,13 +65,40 @@ COTP_API COTP_WUR int validate_totp_in_window(const char* user_code,
                             int         window,
                             int*        matched_delta,
                             cotp_error_t* err_code);
+
+/**
+ * cotp_ctx_validate_totp
+ *
+ * Context-API wrapper around validate_totp_in_window. Uses ctx->digits, ctx->period, ctx->algo.
+ * Returns 1 on match, 0 otherwise (or on error). NULL ctx => INVALID_USER_INPUT, returns 0.
+ */
+COTP_API COTP_WUR int cotp_ctx_validate_totp(cotp_ctx* ctx,
+                            const char*   user_code,
+                            const char*   base32_encoded_secret,
+                            long          timestamp,
+                            int           window,
+                            int*          matched_delta,
+                            cotp_error_t* err);
 #endif
+
+/**
+ * cotp_strerror
+ *
+ * Returns a static, NUL-terminated description of the given error code.
+ * The returned pointer must NOT be freed. Always returns a non-NULL string;
+ * unknown values map to "unknown error".
+ */
+COTP_API const char *cotp_strerror(cotp_error_t err);
 
 // Context helpers
 COTP_API COTP_WUR cotp_ctx* cotp_ctx_create(int digits, int period, int sha_algo);
 COTP_API void               cotp_ctx_free(cotp_ctx* ctx);
 COTP_API COTP_WUR char*     cotp_ctx_totp_at(cotp_ctx* ctx, const char* base32_encoded_secret, long timestamp, cotp_error_t* err);
 COTP_API COTP_WUR char*     cotp_ctx_totp(cotp_ctx* ctx, const char* base32_encoded_secret, cotp_error_t* err);
+COTP_API COTP_WUR char*     cotp_ctx_hotp(cotp_ctx* ctx, const char* base32_encoded_secret, long counter, cotp_error_t* err);
+// Steam variants ignore ctx->digits and ctx->algo (Steam fixes both); only ctx->period is used.
+COTP_API COTP_WUR char*     cotp_ctx_steam_totp(cotp_ctx* ctx, const char* base32_encoded_secret, cotp_error_t* err);
+COTP_API COTP_WUR char*     cotp_ctx_steam_totp_at(cotp_ctx* ctx, const char* base32_encoded_secret, long timestamp, cotp_error_t* err);
 
 /**
  * base32_encode
@@ -161,6 +195,53 @@ COTP_API COTP_WUR char    *get_steam_totp_at (const char   *base32_encoded_secre
  */
 COTP_API COTP_WUR int64_t  otp_to_int        (const char   *otp,
                             cotp_error_t *err_code);
+
+// otpauth:// URI parser/builder (Google Authenticator de-facto format).
+typedef enum {
+    COTP_OTPAUTH_TOTP = 0,
+    COTP_OTPAUTH_HOTP = 1
+} cotp_otpauth_type;
+
+typedef struct {
+    cotp_otpauth_type type;
+    char *issuer;       // owned, may be NULL
+    char *account;      // owned, may be NULL
+    char *secret;       // owned, base32-encoded; non-NULL on successful parse
+    int   algo;         // COTP_SHA1 / COTP_SHA256 / COTP_SHA512
+    int   digits;       // 4-10
+    int   period;       // 1-120 (TOTP only)
+    long  counter;      // >= 0 (HOTP only)
+} cotp_otpauth_uri;
+
+/**
+ * cotp_otpauth_uri_parse
+ *
+ * Parses an otpauth:// URI. On success, returns a heap-allocated struct that the caller must
+ * release via cotp_otpauth_uri_free(). Defaults for missing query parameters: algorithm=SHA1,
+ * digits=6, period=30. For HOTP the `counter` parameter is required.
+ * Returns NULL on error and sets *err. Unknown query keys are silently ignored.
+ * If both label-issuer ("Issuer:Account") and "&issuer=" query parameter are present, the label-issuer wins.
+ */
+COTP_API COTP_WUR cotp_otpauth_uri *cotp_otpauth_uri_parse (const char    *uri,
+                                                           cotp_error_t  *err);
+
+/**
+ * cotp_otpauth_uri_build
+ *
+ * Builds an otpauth:// URI from the given struct. Returns a newly allocated NUL-terminated string
+ * the caller must free(). Validates fields with the same bounds as get_hotp/get_totp_at; returns
+ * NULL with *err set on validation failure or allocation error.
+ */
+COTP_API COTP_WUR char *cotp_otpauth_uri_build (const cotp_otpauth_uri *u,
+                                                cotp_error_t           *err);
+
+/**
+ * cotp_otpauth_uri_free
+ *
+ * Releases a struct returned by cotp_otpauth_uri_parse(). NULL-safe. Securely zeroes the
+ * `secret` field before freeing.
+ */
+COTP_API void cotp_otpauth_uri_free (cotp_otpauth_uri *u);
 
 #ifdef __cplusplus
 }

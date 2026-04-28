@@ -154,7 +154,11 @@ base32_decode (const char   *user_data_untrimmed,
         return NULL;
     }
     size_t user_data_buflen = strlen (user_data);
-    data_len -= strip_char (user_data);
+    (void)strip_char (user_data);
+    // After strip_char, iterate by the actual NUL-terminated content length —
+    // never by the caller-supplied data_len, which may exceed the buffer when
+    // user_data_untrimmed contains embedded NULs (strdup stops at the first one).
+    size_t user_data_len = strlen (user_data);
 
     if (!is_string_valid_b32 (user_data)) {
         cotp_secure_memzero (user_data, user_data_buflen);
@@ -164,9 +168,8 @@ base32_decode (const char   *user_data_untrimmed,
     }
 
     size_t user_data_chars = 0;
-    for (size_t i = 0; i < data_len; i++) {
-        // As it's not known whether data_len is with or without the +1 for the null byte, a manual check is required.
-        if (user_data[i] != '=' && user_data[i] != '\0') {
+    for (size_t i = 0; i < user_data_len; i++) {
+        if (user_data[i] != '=') {
             user_data_chars += 1;
         }
     }

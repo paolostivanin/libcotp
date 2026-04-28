@@ -164,3 +164,21 @@ Test(b32_decode_test, b32_no_padding_valid) {
 
     free (dk);
 }
+
+
+// Regression: caller-supplied data_len longer than the actual NUL-terminated
+// content (e.g., embedded NUL inside the buffer) must not over-read.
+// Discovered by libFuzzer.
+Test(b32_decode_test, b32_decode_embedded_nul_no_overread) {
+    cotp_error_t err = NO_ERROR;
+    char input[40];
+    memset (input, 0, sizeof (input));
+    input[0] = 'C';   // valid base32 char
+    input[31] = '?';  // garbage past the embedded NUL — must NOT be read
+
+    // Tell the function the buffer is 32 bytes even though strlen is 1.
+    uint8_t *out = base32_decode (input, sizeof (input), &err);
+    // We don't care which error code (or success) — only that it doesn't crash
+    // and doesn't read past byte 1 of the input.
+    free (out);
+}
