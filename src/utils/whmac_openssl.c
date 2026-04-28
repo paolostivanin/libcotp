@@ -88,12 +88,18 @@ whmac_setkey (whmac_handle_t *hd,
     return NO_ERROR;
 }
 
-void
+int
 whmac_update (whmac_handle_t *hd,
               const unsigned char  *buffer,
               size_t          buflen)
 {
-    EVP_MAC_update (hd->ctx, buffer, buflen);
+    if (hd == NULL || hd->ctx == NULL) {
+        return WHMAC_ERROR;
+    }
+    if (!EVP_MAC_update (hd->ctx, buffer, buflen)) {
+        return WHMAC_ERROR;
+    }
+    return NO_ERROR;
 }
 
 ssize_t
@@ -101,9 +107,12 @@ whmac_finalize(whmac_handle_t *hd,
                unsigned char  *buffer,
                size_t          buflen)
 {
+    if (hd == NULL || hd->ctx == NULL) {
+        return -WHMAC_ERROR;
+    }
     size_t dlen = EVP_MAC_CTX_get_mac_size (hd->ctx);
     if (buffer == NULL) {
-        return dlen;
+        return (ssize_t)dlen;
     }
 
     if (dlen > buflen) {
@@ -112,9 +121,12 @@ whmac_finalize(whmac_handle_t *hd,
         return -MEMORY_ALLOCATION_ERROR;
     }
 
-    EVP_MAC_final (hd->ctx, buffer, &dlen, buflen);
+    int ok = EVP_MAC_final (hd->ctx, buffer, &dlen, buflen);
     EVP_MAC_CTX_free (hd->ctx);
     hd->ctx = NULL;
 
-    return dlen;
+    if (!ok) {
+        return -WHMAC_ERROR;
+    }
+    return (ssize_t)dlen;
 }

@@ -14,7 +14,7 @@ int             whmac_setkey     (whmac_handle_t *hd,
                                   const unsigned char  *buffer,
                                   size_t         buflen);
 
-void            whmac_update     (whmac_handle_t *hd,
+int             whmac_update     (whmac_handle_t *hd,
                                   const unsigned char  *buffer,
                                   size_t         buflen);
 

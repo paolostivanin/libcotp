@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(cotp VERSION "4.0.1" LANGUAGES "C")
+project(cotp VERSION "4.0.2" LANGUAGES "C")
 
 set(CMAKE_C_STANDARD 11)
 
@@ -85,7 +85,7 @@ target_include_directories(cotp
 target_compile_options(cotp PRIVATE
         -Wall -Wextra -O3 -Wformat=2 -Wmissing-format-attribute -fstack-protector-strong -Wundef -Wmissing-format-attribute
         -fdiagnostics-color=always -Wstrict-prototypes -Wunreachable-code -Wchar-subscripts -Wwrite-strings -Wpointer-arith -Wbad-function-cast
-        -Wcast-align -Werror=format-security -Werror=implicit-function-declaration -Wno-sign-compare -Wno-format-nonliteral -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3
+        -Wcast-align -Werror=format-security -Werror=implicit-function-declaration -Wno-sign-compare -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3
         -fvisibility=hidden)
 
 if(NOT APPLE)

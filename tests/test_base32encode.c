@@ -16,7 +16,8 @@ Test(b32_encode_test, null_input) {
 Test(b32_encode_test, invalid_or_empty) {
     cotp_error_t err;
 
-    base32_encode (NULL, 30, &err);
+    char *null_enc = base32_encode (NULL, 30, &err);
+    cr_expect_null (null_enc);
     cr_expect_eq (err, INVALID_USER_INPUT);
 
     char *k_enc = base32_encode ((const unsigned char *)"asdiasjdijis", 0, &err);

@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "../cotp.h"
+#include "secure_zero.h"
 
 #define BITS_PER_BYTE               8
 #define BITS_PER_B32_BLOCK          5
@@ -63,8 +64,13 @@ base32_encode (const uint8_t *user_data,
 {
     cotp_error_t error = check_input (user_data, data_len, MAX_ENCODE_INPUT_LEN);
     if (error == EMPTY_STRING) {
+        char *empty = strdup ("");
+        if (empty == NULL) {
+            *err_code = MEMORY_ALLOCATION_ERROR;
+            return NULL;
+        }
         *err_code = error;
-        return strdup ("");
+        return empty;
     }
     if (error != NO_ERROR) {
         *err_code = error;
@@ -78,7 +84,7 @@ base32_encode (const uint8_t *user_data,
         // the user might give the input with the null byte, we need to check for that
         null_terminated = true;
     }
-    for (int i = 0; i < data_len; i++) {
+    for (size_t i = 0; i < data_len; i++) {
         if (null_terminated == true && user_data[i] == '\0' && i == data_len-1) {
             break;
         }
@@ -99,10 +105,10 @@ base32_encode (const uint8_t *user_data,
         return NULL;
     }
 
-    for (int i = 0, j = 0; i < user_data_chars; i += 5) {
+    for (size_t i = 0, j = 0; i < user_data_chars; i += 5) {
         uint64_t quintuple = 0;
 
-        for (int k = 0; k < 5; k++) {
+        for (size_t k = 0; k < 5; k++) {
             quintuple = (quintuple << 8) | (i + k < user_data_chars ? user_data[i + k] : 0);
         }
 
@@ -129,8 +135,13 @@ base32_decode (const char   *user_data_untrimmed,
 {
     cotp_error_t error = check_input ((uint8_t *)user_data_untrimmed, data_len, MAX_DECODE_BASE32_INPUT_LEN);
     if (error == EMPTY_STRING) {
+        char *empty = strdup ("");
+        if (empty == NULL) {
+            *err_code = MEMORY_ALLOCATION_ERROR;
+            return NULL;
+        }
         *err_code = error;
-        return (uint8_t *)strdup ("");
+        return (uint8_t *)empty;
     }
     if (error != NO_ERROR) {
         *err_code = error;
@@ -142,16 +153,18 @@ base32_decode (const char   *user_data_untrimmed,
         *err_code = MEMORY_ALLOCATION_ERROR;
         return NULL;
     }
+    size_t user_data_buflen = strlen (user_data);
     data_len -= strip_char (user_data);
 
     if (!is_string_valid_b32 (user_data)) {
+        cotp_secure_memzero (user_data, user_data_buflen);
         free (user_data);
         *err_code = INVALID_B32_INPUT;
         return NULL;
     }
 
     size_t user_data_chars = 0;
-    for (int i = 0; i < data_len; i++) {
+    for (size_t i = 0; i < data_len; i++) {
         // As it's not known whether data_len is with or without the +1 for the null byte, a manual check is required.
         if (user_data[i] != '=' && user_data[i] != '\0') {
             user_data_chars += 1;
@@ -162,6 +175,7 @@ base32_decode (const char   *user_data_untrimmed,
     size_t output_length = (user_data_chars * 5) / 8;
     uint8_t *decoded_data = calloc(output_length + 1, 1);
     if (decoded_data == NULL) {
+        cotp_secure_memzero (user_data, user_data_buflen);
         free (user_data);
         *err_code = MEMORY_ALLOCATION_ERROR;
         return NULL;
@@ -170,7 +184,7 @@ base32_decode (const char   *user_data_untrimmed,
     uint8_t mask, current_byte = 0;
     int bits_left = 8;
     size_t j = 0;
-    for (int i = 0; i < (int)user_data_chars; i++) {
+    for (size_t i = 0; i < user_data_chars; i++) {
         int char_index = get_char_index ((uint8_t)user_data[i]);
         if (bits_left > BITS_PER_B32_BLOCK) {
             mask = (uint8_t)char_index << (bits_left - BITS_PER_B32_BLOCK);
@@ -188,6 +202,7 @@ base32_decode (const char   *user_data_untrimmed,
     }
     decoded_data[j] = '\0';
 
+    cotp_secure_memzero (user_data, user_data_buflen);
     free (user_data);
 
     *err_code = NO_ERROR;

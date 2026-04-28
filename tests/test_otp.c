@@ -1,5 +1,6 @@
 #include <criterion/criterion.h>
 #include <string.h>
+#include <limits.h>
 #include "../src/cotp.h"
 
 Test(totp_rfc6238, test_8_digits_sha1) {
@@ -528,4 +529,46 @@ Test(ctx_api, test_null_ctx) {
 
 Test(ctx_api, test_free_null) {
     cotp_ctx_free (NULL);
+}
+
+
+// Regression: very large counter must not cause UB in HMAC/truncation pipeline.
+Test(hotp_rfc, test_large_counter) {
+    const char *K = "12345678901234567890";
+
+    cotp_error_t cotp_err;
+    char *K_base32 = base32_encode ((const uint8_t *)K, strlen(K)+1, &cotp_err);
+
+    cotp_error_t err = NO_ERROR;
+    char *hotp = get_hotp (K_base32, LONG_MAX, 6, COTP_SHA1, &err);
+    cr_expect_eq (err, NO_ERROR, "Expected NO_ERROR for LONG_MAX counter, got %d\n", err);
+    cr_assert_not_null (hotp);
+    cr_expect_eq (strlen(hotp), 6, "Expected 6-digit OTP, got %zu\n", strlen(hotp));
+
+    free (hotp);
+    free (K_base32);
+}
+
+
+// Regression: 10-digit OTP must be exactly 10 digits (no negative/sign artefacts).
+Test(totp_boundary, test_10_digits_no_sign_artefact) {
+    const char *K = "12345678901234567890";
+
+    cotp_error_t cotp_err;
+    char *K_base32 = base32_encode ((const uint8_t *)K, strlen(K)+1, &cotp_err);
+
+    // Sweep several timestamps to exercise different bin_code values.
+    const long timestamps[] = {1, 31, 61, 1234567890, 2000000000, 20000000000};
+    for (int i = 0; i < 6; i++) {
+        cotp_error_t err = NO_ERROR;
+        char *totp = get_totp_at (K_base32, timestamps[i], 10, 30, COTP_SHA1, &err);
+        cr_assert_not_null (totp);
+        cr_expect_eq (strlen(totp), 10, "Expected 10-digit length, got %zu for ts=%ld\n", strlen(totp), timestamps[i]);
+        cr_expect_neq (totp[0], '-', "OTP must not start with '-' (ts=%ld got %s)\n", timestamps[i], totp);
+        for (int k = 0; k < 10; k++) {
+            cr_expect (totp[k] >= '0' && totp[k] <= '9', "OTP[%d] must be a digit, got '%c' for ts=%ld\n", k, totp[k], timestamps[i]);
+        }
+        free (totp);
+    }
+    free (K_base32);
 }

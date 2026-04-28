@@ -74,12 +74,16 @@ whmac_setkey (whmac_handle_t *hd,
     return NO_ERROR;
 }
 
-void
+int
 whmac_update (whmac_handle_t *hd,
               const unsigned char  *buffer,
               size_t          buflen)
 {
+    if (hd == NULL) {
+        return WHMAC_ERROR;
+    }
     gcry_md_write (hd->hd, buffer, buflen);
+    return NO_ERROR;
 }
 
 ssize_t

@@ -409,7 +409,12 @@ compute_hmac (const char *K,
         *err_code = WHMAC_ERROR;
         return NULL;
     }
-    whmac_update (hd, C_reverse_byte_order, sizeof(C_reverse_byte_order));
+    if (whmac_update (hd, C_reverse_byte_order, sizeof(C_reverse_byte_order)) != NO_ERROR) {
+        cotp_secure_memzero(secret, secret_len);
+        free (secret);
+        *err_code = WHMAC_ERROR;
+        return NULL;
+    }
 
     size_t dlen = whmac_getlen (hd);
     unsigned char *hmac = calloc (dlen, 1);

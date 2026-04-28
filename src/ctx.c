@@ -29,6 +29,7 @@ cotp_ctx* cotp_ctx_create(int digits, int period, int sha_algo)
 
 void cotp_ctx_free(cotp_ctx* ctx)
 {
+    if (!ctx) return;
     free(ctx);
 }
 

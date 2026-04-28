@@ -28,24 +28,28 @@ whmac_getlen (whmac_handle_t *hd)
 whmac_handle_t *
 whmac_gethandle (int algo)
 {
-    const mbedtls_md_type_t openssl_algo[] = {
+    const mbedtls_md_type_t mbedtls_algo[] = {
         MBEDTLS_MD_SHA1,
         MBEDTLS_MD_SHA256,
         MBEDTLS_MD_SHA512,
     };
+
+    if (algo < 0 || algo > 2) {
+        return NULL;
+    }
+
+    const mbedtls_md_info_t *md_info = mbedtls_md_info_from_type (mbedtls_algo[algo]);
+    if (md_info == NULL) {
+        return NULL;
+    }
 
     whmac_handle_t *whmac_handle = calloc (1, sizeof(*whmac_handle));
     if (whmac_handle == NULL) {
         return NULL;
     }
 
-    if (algo < 0 || algo > 2) {
-        free (whmac_handle);
-        return NULL;
-    }
-
     mbedtls_md_init (&(whmac_handle->sha_ctx));
-    whmac_handle->md_info = mbedtls_md_info_from_type (openssl_algo[algo]);
+    whmac_handle->md_info = md_info;
     int ret = mbedtls_md_setup (&(whmac_handle->sha_ctx), whmac_handle->md_info, 1);
     if (ret != 0) {
         mbedtls_md_free (&(whmac_handle->sha_ctx));
@@ -76,12 +80,18 @@ whmac_setkey (whmac_handle_t *hd,
     return NO_ERROR;
 }
 
-void
+int
 whmac_update (whmac_handle_t *hd,
               const unsigned char *buffer,
               size_t buflen)
 {
-    mbedtls_md_hmac_update (&(hd->sha_ctx), buffer, buflen);
+    if (hd == NULL) {
+        return WHMAC_ERROR;
+    }
+    if (mbedtls_md_hmac_update (&(hd->sha_ctx), buffer, buflen) != 0) {
+        return WHMAC_ERROR;
+    }
+    return NO_ERROR;
 }
 
 ssize_t
@@ -89,6 +99,9 @@ whmac_finalize (whmac_handle_t *hd,
                 unsigned char *buffer,
                 size_t buflen)
 {
+    if (hd == NULL || hd->md_info == NULL) {
+        return -WHMAC_ERROR;
+    }
     size_t dlen = mbedtls_md_get_size(hd->md_info);
     if (buffer == NULL) {
         return (ssize_t)dlen;
@@ -98,7 +111,9 @@ whmac_finalize (whmac_handle_t *hd,
         return -MEMORY_ALLOCATION_ERROR;
     }
 
-    mbedtls_md_hmac_finish (&(hd->sha_ctx), buffer);
+    if (mbedtls_md_hmac_finish (&(hd->sha_ctx), buffer) != 0) {
+        return -WHMAC_ERROR;
+    }
 
     return (ssize_t)dlen;
 }
