@@ -532,6 +532,36 @@ Test(ctx_api, test_free_null) {
 }
 
 
+Test(ctx_api, test_totp_current) {
+    // Positive happy-path test for cotp_ctx_totp (current-time variant).
+    // We compute the bare and ctx versions back-to-back; the race window of
+    // crossing a 30s boundary between the two calls is negligible for a unit test.
+    const char *K = "12345678901234567890";
+
+    cotp_error_t cotp_err;
+    char *K_base32 = base32_encode ((const uint8_t *)K, strlen(K)+1, &cotp_err);
+
+    cotp_ctx *ctx = cotp_ctx_create (6, 30, COTP_SHA1);
+    cr_assert_not_null (ctx);
+
+    cotp_error_t err1 = NO_ERROR, err2 = NO_ERROR;
+    char *bare    = get_totp     (K_base32, 6, 30, COTP_SHA1, &err1);
+    char *via_ctx = cotp_ctx_totp (ctx, K_base32, &err2);
+
+    cr_expect_eq (err1, NO_ERROR);
+    cr_expect_eq (err2, NO_ERROR);
+    cr_assert_not_null (bare);
+    cr_assert_not_null (via_ctx);
+    cr_expect_str_eq (bare, via_ctx);
+    cr_expect_eq (strlen (via_ctx), 6);
+
+    free (bare);
+    free (via_ctx);
+    cotp_ctx_free (ctx);
+    free (K_base32);
+}
+
+
 Test(ctx_api, test_hotp) {
     // RFC 4226 Appendix D: counter=0 => "755224"
     const char *K = "12345678901234567890";

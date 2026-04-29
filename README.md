@@ -8,6 +8,8 @@ C library that generates TOTP and HOTP according to [RFC-6238](https://www.rfc-e
 and [RFC-4226](https://www.rfc-editor.org/rfc/rfc4226), with Base32 codec
 ([RFC-4648](https://www.rfc-editor.org/rfc/rfc4648)) and `otpauth://` URI parser/builder.
 
+**Quick index:** [Public API](#public-api) · [Error Model](#error-model) · [Validation](#validation-helpers-optional) · [Context API](#context-api) · [otpauth:// URIs](#otpauth-uris) · [Base32](#base32-encoding--decoding) · [Utilities](#utilities) · [Operational Notes](#operational-notes)
+
 ## Requirements
 
 - GCC or Clang and CMake
@@ -120,9 +122,10 @@ free(code);
 
 | Error | Meaning |
 |-------|---------|
-| `NO_ERROR` | Success |
-| `VALID` | Validation helper matched |
+| `NO_ERROR` | Success. From `validate_totp_in_window` / `cotp_ctx_validate_totp`, this means the call ran cleanly but **no offset matched**. |
+| `VALID` | Validation matched. Set **only** by `validate_totp_in_window` and `cotp_ctx_validate_totp`. Other functions never use it. |
 | `WHMAC_ERROR` | Backend crypto error |
+| `WCRYPT_VERSION_MISMATCH` | Crypto backend version too old. Currently emitted by the **gcrypt** backend only; the OpenSSL and MbedTLS backends skip the runtime check. |
 | `INVALID_B32_INPUT` | Secret not valid Base32 |
 | `INVALID_ALGO` | Unsupported algorithm |
 | `INVALID_PERIOD` | Period not in allowed range |
@@ -168,6 +171,22 @@ return `INVALID_USER_INPUT`. The internal time arithmetic is overflow-safe;
 deltas whose timestamp would overflow `long` are silently skipped. The compare
 uses constant-time byte comparison.
 
+Example — accept a code generated one period in the past with `window=1`:
+
+```c
+cotp_error_t err;
+char *code = get_totp_at("HXDMVJECJJWSRB3HWIZR4IFUGFTMXBOZ", 1700000000,
+                         6, 30, COTP_SHA1, &err);
+
+int matched_delta = 0;
+int ok = validate_totp_in_window(code, "HXDMVJECJJWSRB3HWIZR4IFUGFTMXBOZ",
+                                 1700000030, /* one period later */
+                                 6, 30, COTP_SHA1,
+                                 1, &matched_delta, &err);
+// ok == 1, matched_delta == -1, err == VALID
+free(code);
+```
+
 ---
 
 ## Context API
@@ -196,6 +215,22 @@ int       cotp_ctx_validate_totp(cotp_ctx *ctx, const char *user_code, const cha
 
 `NULL` ctx returns `NULL` (or `0` for the validate variant) and sets `err` to
 `INVALID_USER_INPUT`. `cotp_ctx_free(NULL)` is a no-op.
+
+Example — generate three codes from the same configuration:
+
+```c
+cotp_ctx *ctx = cotp_ctx_create(6, 30, COTP_SHA1);
+if (!ctx) { /* invalid digits/period/algo */ }
+
+cotp_error_t err;
+for (int i = 0; i < 3; i++) {
+    char *code = cotp_ctx_totp(ctx, "HXDMVJECJJWSRB3HWIZR4IFUGFTMXBOZ", &err);
+    /* … use code … */
+    free(code);
+    sleep(30);
+}
+cotp_ctx_free(ctx);
+```
 
 ---
 
@@ -293,14 +328,85 @@ bool is_string_valid_b32(const char *user_data);
 Behavior:
 
 - `NULL` on error (sets `err`)
-- empty input → empty output + `EMPTY_STRING`
+- empty input → empty non-NULL string + `EMPTY_STRING`
 - spaces allowed
 - invalid base32 → `INVALID_B32_INPUT`
+
+Example — round-trip a binary buffer:
+
+```c
+const unsigned char raw[] = { 0xDE, 0xAD, 0xBE, 0xEF };
+
+cotp_error_t err;
+char *encoded = base32_encode(raw, sizeof raw, &err);          // "326L57Y="
+unsigned char *decoded = base32_decode(encoded, strlen(encoded), &err);
+// memcmp(raw, decoded, sizeof raw) == 0
+free(encoded);
+free(decoded);
+```
+
+Lenient-mode caveats — the decoder targets the OTP-secret use case, not strict
+RFC 4648 conformance. Callers handling general-purpose Base32 should be aware:
+
+- Non-zero pad bits in the final group are accepted, not rejected (RFC 4648 §3.5
+  strict-mode behavior is not implemented).
+- Embedded NUL bytes silently truncate the input (`strlen` semantics).
+- Only ASCII space (0x20) is stripped — tabs, newlines, and CRs cause `INVALID_B32_INPUT`.
+- A single base32 character (e.g. `"J"`) is accepted and decodes to a zero-length buffer.
+
+---
+
+## Utilities
+
+Helpers exposed for callers that handle their own secret material. Both are
+thread-safe and have no internal state.
+
+```c
+void cotp_secure_memzero(void *ptr, size_t len);
+int  cotp_timing_safe_memcmp(const void *a, const void *b, size_t len);
+```
+
+- `cotp_secure_memzero` — wipes `len` bytes at `ptr` in a way the compiler must
+  not elide (uses `memset_s` / `explicit_bzero` / volatile fallback). Safe with
+  `ptr == NULL` or `len == 0`. Use it to scrub the Base32 secret strings you
+  pass into `get_totp` / `get_hotp` once you no longer need them.
+- `cotp_timing_safe_memcmp` — constant-time byte comparison. Returns `0` on
+  equal, non-zero otherwise. Length is treated as public information.
+
+Example — scrub a secret after use:
+
+```c
+char secret[] = "HXDMVJECJJWSRB3HWIZR4IFUGFTMXBOZ";
+cotp_error_t err;
+char *code = get_totp(secret, 6, 30, COTP_SHA1, &err);
+/* … */
+free(code);
+cotp_secure_memzero(secret, sizeof secret - 1);
+```
 
 ---
 
 ## Operational Notes
 
-- TOTP requires correct system time (use NTP)
-- Validation should allow small window (±1–2 periods)
-- Secrets should be handled securely
+- **System clock**: `get_totp()` reads `time(NULL)` once at call time; ensure
+  the host clock is synchronized (NTP). A skew larger than the verifier's
+  validation window will cause every code to be rejected.
+- **Validation window**: allow a small window (±1–2 periods) on the verifier
+  side to absorb minor clock drift.
+- **HOTP counter persistence**: HOTP requires the caller to persist the counter
+  across runs and increment it for every code consumed. Lose the counter and
+  the device falls out of sync with the verifier.
+- **Steam TOTP secrets**: Steam stores the seed as a Base64 string on the
+  device. Callers must Base64-decode it to raw bytes and Base32-encode those
+  bytes before passing the result to `get_steam_totp` / `get_steam_totp_at`.
+  This library does not perform that conversion.
+- **Minimum secret length**: RFC 6238 §5.1 recommends ≥160-bit shared secrets
+  for SHA1 (20 raw bytes / 32 Base32 characters). The library accepts shorter
+  secrets — pass them at your own cryptographic risk.
+- **Thread safety**: bare functions hold no global state and are safe to call
+  concurrently from multiple threads. `cotp_ctx` is immutable after creation
+  and may be shared. The gcrypt backend performs a one-shot library
+  initialization on the first call; subsequent calls are inert.
+- **Secrets in memory**: use `cotp_secure_memzero` (see [Utilities](#utilities))
+  to wipe secret strings the caller owns before freeing them. The library
+  already scrubs its internal copies.

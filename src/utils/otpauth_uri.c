@@ -18,7 +18,8 @@ static int hex_val (char c) {
     return -1;
 }
 
-// Percent-decode a buffer of given length. Returns malloc'd NUL-terminated string, or NULL on OOM/invalid escape.
+// Percent-decode a buffer of given length. Returns malloc'd NUL-terminated string, or NULL on
+// OOM, invalid escape, or a decoded NUL byte (%00 is rejected to prevent silent truncation).
 static char *
 pct_decode_n (const char *in, size_t len)
 {
@@ -30,7 +31,9 @@ pct_decode_n (const char *in, size_t len)
             int hi = hex_val (in[i+1]);
             int lo = hex_val (in[i+2]);
             if (hi < 0 || lo < 0) { free (out); return NULL; }
-            out[j++] = (char)((hi << 4) | lo);
+            unsigned char byte = (unsigned char)((hi << 4) | lo);
+            if (byte == 0) { free (out); return NULL; }
+            out[j++] = (char)byte;
             i += 2;
         } else {
             out[j++] = in[i];
@@ -40,10 +43,9 @@ pct_decode_n (const char *in, size_t len)
     return out;
 }
 
-// Percent-encode for unreserved set per RFC 3986 (plus ':' kept readable in label).
-// `keep_colon` allows ':' to remain unescaped (for the label "Issuer:Account" form).
+// Percent-encode for the unreserved set per RFC 3986.
 static char *
-pct_encode (const char *in, int keep_colon)
+pct_encode (const char *in)
 {
     static const char hex[] = "0123456789ABCDEF";
     if (!in) return NULL;
@@ -54,7 +56,7 @@ pct_encode (const char *in, int keep_colon)
     for (size_t i = 0; i < len; i++) {
         unsigned char c = (unsigned char)in[i];
         int unreserved = (isalnum (c) || c == '-' || c == '_' || c == '.' || c == '~');
-        if (unreserved || (keep_colon && c == ':')) {
+        if (unreserved) {
             out[j++] = (char)c;
         } else {
             out[j++] = '%';
@@ -141,12 +143,12 @@ cotp_otpauth_uri_parse (const char *uri, cotp_error_t *err)
             if (!label_issuer_raw || !label_account_raw) {
                 free (label_issuer_raw);
                 free (label_account_raw);
-                *errp = MEMORY_ALLOCATION_ERROR;
+                *errp = INVALID_USER_INPUT;
                 return NULL;
             }
         } else {
             label_account_raw = pct_decode_n (p, label_len);
-            if (!label_account_raw) { *errp = MEMORY_ALLOCATION_ERROR; return NULL; }
+            if (!label_account_raw) { *errp = INVALID_USER_INPUT; return NULL; }
         }
     }
 
@@ -182,12 +184,12 @@ cotp_otpauth_uri_parse (const char *uri, cotp_error_t *err)
             if (key_len == 6 && strncasecmp (qp, "secret", 6) == 0) {
                 free (u->secret);
                 u->secret = pct_decode_n (val, val_len);
-                if (!u->secret) { cotp_otpauth_uri_free (u); *errp = MEMORY_ALLOCATION_ERROR; return NULL; }
+                if (!u->secret) { cotp_otpauth_uri_free (u); *errp = INVALID_USER_INPUT; return NULL; }
                 saw_secret = 1;
             } else if (key_len == 6 && strncasecmp (qp, "issuer", 6) == 0) {
                 if (!u->issuer) {
                     u->issuer = pct_decode_n (val, val_len);
-                    if (!u->issuer) { cotp_otpauth_uri_free (u); *errp = MEMORY_ALLOCATION_ERROR; return NULL; }
+                    if (!u->issuer) { cotp_otpauth_uri_free (u); *errp = INVALID_USER_INPUT; return NULL; }
                 }
             } else if (key_len == 9 && strncasecmp (qp, "algorithm", 9) == 0) {
                 if (val_len == 4 && strncasecmp (val, "SHA1", 4) == 0)        u->algo = COTP_SHA1;
@@ -264,15 +266,14 @@ cotp_otpauth_uri_build (const cotp_otpauth_uri *u, cotp_error_t *err)
     const char *algo_str = (u->algo == COTP_SHA256) ? "SHA256"
                           : (u->algo == COTP_SHA512) ? "SHA512" : "SHA1";
 
-    // Encode parts. Label keeps ':' readable so that "Issuer:Account" is human-friendly.
-    char *enc_issuer_label  = u->issuer  ? pct_encode (u->issuer,  0) : NULL;
-    char *enc_account_label = u->account ? pct_encode (u->account, 0) : NULL;
-    char *enc_secret        = pct_encode (u->secret, 0);
-    char *enc_issuer_query  = u->issuer  ? pct_encode (u->issuer,  0) : NULL;
+    // Encode each label component; the ':' separator between issuer and account is added literally below.
+    // Same encoded string is reused for both the label-form ("Issuer:Account") and the &issuer= query param.
+    char *enc_issuer        = u->issuer  ? pct_encode (u->issuer)  : NULL;
+    char *enc_account_label = u->account ? pct_encode (u->account) : NULL;
+    char *enc_secret        = pct_encode (u->secret);
 
-    if (!enc_secret || (u->issuer && (!enc_issuer_label || !enc_issuer_query)) ||
-        (u->account && !enc_account_label)) {
-        free (enc_issuer_label); free (enc_account_label); free (enc_secret); free (enc_issuer_query);
+    if (!enc_secret || (u->issuer && !enc_issuer) || (u->account && !enc_account_label)) {
+        free (enc_issuer); free (enc_account_label); free (enc_secret);
         *errp = MEMORY_ALLOCATION_ERROR;
         return NULL;
     }
@@ -283,31 +284,31 @@ cotp_otpauth_uri_build (const cotp_otpauth_uri *u, cotp_error_t *err)
     if (u->type == COTP_OTPAUTH_TOTP) {
         n = snprintf (NULL, 0, "otpauth://%s/%s%s%s?secret=%s&algorithm=%s&digits=%d&period=%d%s%s",
                       type_str,
-                      enc_issuer_label ? enc_issuer_label : "",
-                      enc_issuer_label ? ":" : "",
+                      enc_issuer ? enc_issuer : "",
+                      enc_issuer ? ":" : "",
                       enc_account_label ? enc_account_label : "",
                       enc_secret, algo_str, u->digits, u->period,
-                      enc_issuer_query ? "&issuer=" : "",
-                      enc_issuer_query ? enc_issuer_query : "");
+                      enc_issuer ? "&issuer=" : "",
+                      enc_issuer ? enc_issuer : "");
     } else {
         n = snprintf (NULL, 0, "otpauth://%s/%s%s%s?secret=%s&algorithm=%s&digits=%d&counter=%ld%s%s",
                       type_str,
-                      enc_issuer_label ? enc_issuer_label : "",
-                      enc_issuer_label ? ":" : "",
+                      enc_issuer ? enc_issuer : "",
+                      enc_issuer ? ":" : "",
                       enc_account_label ? enc_account_label : "",
                       enc_secret, algo_str, u->digits, u->counter,
-                      enc_issuer_query ? "&issuer=" : "",
-                      enc_issuer_query ? enc_issuer_query : "");
+                      enc_issuer ? "&issuer=" : "",
+                      enc_issuer ? enc_issuer : "");
     }
     if (n < 0) {
-        free (enc_issuer_label); free (enc_account_label); free (enc_secret); free (enc_issuer_query);
+        free (enc_issuer); free (enc_account_label); free (enc_secret);
         *errp = MEMORY_ALLOCATION_ERROR;
         return NULL;
     }
 
     char *out = malloc ((size_t)n + 1);
     if (!out) {
-        free (enc_issuer_label); free (enc_account_label); free (enc_secret); free (enc_issuer_query);
+        free (enc_issuer); free (enc_account_label); free (enc_secret);
         *errp = MEMORY_ALLOCATION_ERROR;
         return NULL;
     }
@@ -315,27 +316,26 @@ cotp_otpauth_uri_build (const cotp_otpauth_uri *u, cotp_error_t *err)
     if (u->type == COTP_OTPAUTH_TOTP) {
         snprintf (out, (size_t)n + 1, "otpauth://%s/%s%s%s?secret=%s&algorithm=%s&digits=%d&period=%d%s%s",
                   type_str,
-                  enc_issuer_label ? enc_issuer_label : "",
-                  enc_issuer_label ? ":" : "",
+                  enc_issuer ? enc_issuer : "",
+                  enc_issuer ? ":" : "",
                   enc_account_label ? enc_account_label : "",
                   enc_secret, algo_str, u->digits, u->period,
-                  enc_issuer_query ? "&issuer=" : "",
-                  enc_issuer_query ? enc_issuer_query : "");
+                  enc_issuer ? "&issuer=" : "",
+                  enc_issuer ? enc_issuer : "");
     } else {
         snprintf (out, (size_t)n + 1, "otpauth://%s/%s%s%s?secret=%s&algorithm=%s&digits=%d&counter=%ld%s%s",
                   type_str,
-                  enc_issuer_label ? enc_issuer_label : "",
-                  enc_issuer_label ? ":" : "",
+                  enc_issuer ? enc_issuer : "",
+                  enc_issuer ? ":" : "",
                   enc_account_label ? enc_account_label : "",
                   enc_secret, algo_str, u->digits, u->counter,
-                  enc_issuer_query ? "&issuer=" : "",
-                  enc_issuer_query ? enc_issuer_query : "");
+                  enc_issuer ? "&issuer=" : "",
+                  enc_issuer ? enc_issuer : "");
     }
 
-    free (enc_issuer_label);
+    free (enc_issuer);
     free (enc_account_label);
     free (enc_secret);
-    free (enc_issuer_query);
 
     *errp = NO_ERROR;
     return out;

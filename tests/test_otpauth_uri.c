@@ -239,3 +239,47 @@ Test(otpauth, build_rejects_invalid_secret) {
 Test(otpauth, free_null_safe) {
     cotp_otpauth_uri_free (NULL);  // must not crash
 }
+
+
+Test(otpauth, parse_malformed_pct_encoding_rejected) {
+    cotp_error_t err = NO_ERROR;
+    cr_expect_null (cotp_otpauth_uri_parse ("otpauth://totp/x?secret=AB%GG", &err));
+    cr_expect_eq (err, INVALID_USER_INPUT);
+}
+
+
+Test(otpauth, parse_pct_null_byte_rejected) {
+    // %00 in any percent-decoded field would silently truncate the resulting C string;
+    // the parser must reject it.
+    cotp_error_t err = NO_ERROR;
+    cr_expect_null (cotp_otpauth_uri_parse ("otpauth://totp/x?secret=AB%00CD", &err));
+    cr_expect_eq (err, INVALID_USER_INPUT);
+}
+
+
+Test(otpauth, parse_no_slash_after_type_rejected) {
+    cotp_error_t err = NO_ERROR;
+    cr_expect_null (cotp_otpauth_uri_parse ("otpauth://totp", &err));
+    cr_expect_eq (err, INVALID_USER_INPUT);
+}
+
+
+Test(otpauth, parse_invalid_type_rejected) {
+    cotp_error_t err = NO_ERROR;
+    cr_expect_null (cotp_otpauth_uri_parse ("otpauth://foo/x?secret=JBSWY3DPEHPK3PXP", &err));
+    cr_expect_eq (err, INVALID_USER_INPUT);
+}
+
+
+Test(otpauth, parse_negative_hotp_counter_rejected) {
+    cotp_error_t err = NO_ERROR;
+    cr_expect_null (cotp_otpauth_uri_parse ("otpauth://hotp/x?secret=JBSWY3DPEHPK3PXP&counter=-5", &err));
+    cr_expect_eq (err, INVALID_COUNTER);
+}
+
+
+Test(otpauth, parse_empty_secret_value_rejected) {
+    cotp_error_t err = NO_ERROR;
+    cr_expect_null (cotp_otpauth_uri_parse ("otpauth://totp/x?secret=", &err));
+    cr_expect_eq (err, INVALID_USER_INPUT);
+}

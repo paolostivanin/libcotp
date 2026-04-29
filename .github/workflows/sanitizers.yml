@@ -39,3 +39,32 @@ jobs:
           ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
           UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
         run: ctest --test-dir build --output-on-failure
+
+  fuzz-smoke:
+    name: Fuzzer smoke (30s each)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo DEBIAN_FRONTEND=noninteractive apt -y install \
+            cmake clang libgcrypt20-dev
+
+      - name: Configure (Clang + libFuzzer + ASan + UBSan)
+        run: |
+          mkdir build && cd build
+          CC=clang cmake -DCOTP_BUILD_FUZZERS=ON ..
+
+      - name: Build fuzzers
+        run: cmake --build build --parallel --target fuzz_base32_decode fuzz_get_totp_at fuzz_otpauth_uri
+
+      - name: Smoke run each fuzzer for 30s
+        env:
+          ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
+          UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+        run: |
+          ./build/fuzz/fuzz_base32_decode -max_total_time=30
+          ./build/fuzz/fuzz_get_totp_at   -max_total_time=30
+          ./build/fuzz/fuzz_otpauth_uri   -max_total_time=30

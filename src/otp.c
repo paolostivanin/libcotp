@@ -159,7 +159,7 @@ get_totp_at (const char   *secret,
 
     cotp_error_t err;
     char *totp = get_hotp (secret, current_timestamp / period, digits, algo, &err);
-    if (err != NO_ERROR && err != VALID) {
+    if (err != NO_ERROR) {
         *errp = err;
         return NULL;
     }

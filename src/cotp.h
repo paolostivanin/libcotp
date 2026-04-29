@@ -88,7 +88,27 @@ COTP_API COTP_WUR int cotp_ctx_validate_totp(cotp_ctx* ctx,
  * The returned pointer must NOT be freed. Always returns a non-NULL string;
  * unknown values map to "unknown error".
  */
-COTP_API const char *cotp_strerror(cotp_error_t err);
+COTP_API COTP_WUR const char *cotp_strerror(cotp_error_t err);
+
+/**
+ * cotp_secure_memzero
+ *
+ * Wipes `len` bytes at `ptr` in a way the compiler must not elide. Use to scrub
+ * secret material (decoded keys, OTP buffers, secret strings the caller owns)
+ * before freeing or returning. Safe to call with ptr == NULL or len == 0.
+ */
+COTP_API void cotp_secure_memzero(void *ptr, size_t len);
+
+/**
+ * cotp_timing_safe_memcmp
+ *
+ * Constant-time byte comparison. Returns 0 if the two buffers are equal,
+ * non-zero otherwise. The runtime is independent of where the first differing
+ * byte sits, so it is safe for comparing OTPs, MACs, or other secret-derived
+ * tokens. Length itself is treated as public; the caller must ensure both
+ * buffers have at least `len` accessible bytes.
+ */
+COTP_API COTP_WUR int cotp_timing_safe_memcmp(const void *a, const void *b, size_t len);
 
 // Context helpers
 COTP_API COTP_WUR cotp_ctx* cotp_ctx_create(int digits, int period, int sha_algo);
