@@ -91,13 +91,15 @@ target_include_directories(cotp
         PRIVATE
             ${HMAC_INCLUDE_DIR})
 
-target_compile_options(cotp PRIVATE
-        -Wall -Wextra -O3 -Wformat=2 -Wmissing-format-attribute -fstack-protector-strong -Wundef -Wmissing-format-attribute
-        -fdiagnostics-color=always -Wstrict-prototypes -Wunreachable-code -Wchar-subscripts -Wwrite-strings -Wpointer-arith -Wbad-function-cast
-        -Wcast-align -Werror=format-security -Werror=implicit-function-declaration -Wno-sign-compare -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3
-        -fvisibility=hidden)
+if(NOT MSVC)
+    target_compile_options(cotp PRIVATE
+            -Wall -Wextra -O3 -Wformat=2 -Wmissing-format-attribute -fstack-protector-strong -Wundef -Wmissing-format-attribute
+            -fdiagnostics-color=always -Wstrict-prototypes -Wunreachable-code -Wchar-subscripts -Wwrite-strings -Wpointer-arith -Wbad-function-cast
+            -Wcast-align -Werror=format-security -Werror=implicit-function-declaration -Wno-sign-compare -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3
+            -fvisibility=hidden)
+endif()
 
-if(NOT APPLE)
+if(NOT APPLE AND NOT MSVC)
     target_link_options(cotp PRIVATE
             "LINKER:-z,relro,-z,now"
             "LINKER:-z,noexecstack")
