@@ -1,4 +1,4 @@
-#include <mbedtls/sha256.h>
+#include <mbedtls/md.h>
 #include "../whash.h"
 
 int
@@ -9,7 +9,11 @@ whash_sha256 (const unsigned char *data,
     if (out == NULL || (data == NULL && len > 0)) {
         return -1;
     }
-    if (mbedtls_sha256 (data, len, out, 0) != 0) {
+    const mbedtls_md_info_t *info = mbedtls_md_info_from_type (MBEDTLS_MD_SHA256);
+    if (info == NULL) {
+        return -1;
+    }
+    if (mbedtls_md (info, data, len, out) != 0) {
         return -1;
     }
     return 0;
