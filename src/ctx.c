@@ -78,6 +78,24 @@ char* cotp_ctx_steam_totp_at(cotp_ctx* ctx, const char* base32_encoded_secret, l
     return get_steam_totp_at(base32_encoded_secret, timestamp, ctx->period, err);
 }
 
+char* cotp_ctx_yaotp(cotp_ctx* ctx, const char* base32_encoded_secret, const char* pin, cotp_error_t* err)
+{
+    if (!ctx) {
+        if (err) *err = INVALID_USER_INPUT;
+        return NULL;
+    }
+    return get_yaotp(base32_encoded_secret, pin, err);
+}
+
+char* cotp_ctx_yaotp_at(cotp_ctx* ctx, const char* base32_encoded_secret, const char* pin, long timestamp, cotp_error_t* err)
+{
+    if (!ctx) {
+        if (err) *err = INVALID_USER_INPUT;
+        return NULL;
+    }
+    return get_yaotp_at(base32_encoded_secret, pin, timestamp, err);
+}
+
 #ifdef COTP_ENABLE_VALIDATION
 int cotp_ctx_validate_totp(cotp_ctx* ctx,
                            const char*   user_code,

@@ -7,66 +7,10 @@
 #include <limits.h>
 #include "../cotp.h"
 #include "secure_zero.h"
+#include "pct.h"
 
 #define OTPAUTH_PREFIX     "otpauth://"
 #define OTPAUTH_PREFIX_LEN 10
-
-static int hex_val (char c) {
-    if (c >= '0' && c <= '9') return c - '0';
-    if (c >= 'a' && c <= 'f') return c - 'a' + 10;
-    if (c >= 'A' && c <= 'F') return c - 'A' + 10;
-    return -1;
-}
-
-// Percent-decode a buffer of given length. Returns malloc'd NUL-terminated string, or NULL on
-// OOM, invalid escape, or a decoded NUL byte (%00 is rejected to prevent silent truncation).
-static char *
-pct_decode_n (const char *in, size_t len)
-{
-    char *out = malloc (len + 1);
-    if (!out) return NULL;
-    size_t j = 0;
-    for (size_t i = 0; i < len; i++) {
-        if (in[i] == '%' && i + 2 < len) {
-            int hi = hex_val (in[i+1]);
-            int lo = hex_val (in[i+2]);
-            if (hi < 0 || lo < 0) { free (out); return NULL; }
-            unsigned char byte = (unsigned char)((hi << 4) | lo);
-            if (byte == 0) { free (out); return NULL; }
-            out[j++] = (char)byte;
-            i += 2;
-        } else {
-            out[j++] = in[i];
-        }
-    }
-    out[j] = '\0';
-    return out;
-}
-
-// Percent-encode for the unreserved set per RFC 3986.
-static char *
-pct_encode (const char *in)
-{
-    static const char hex[] = "0123456789ABCDEF";
-    if (!in) return NULL;
-    size_t len = strlen (in);
-    char *out = malloc (len * 3 + 1);
-    if (!out) return NULL;
-    size_t j = 0;
-    for (size_t i = 0; i < len; i++) {
-        unsigned char c = (unsigned char)in[i];
-        int unreserved = (isalnum (c) || c == '-' || c == '_' || c == '.' || c == '~');
-        if (unreserved) {
-            out[j++] = (char)c;
-        } else {
-            out[j++] = '%';
-            out[j++] = hex[c >> 4];
-            out[j++] = hex[c & 0x0F];
-        }
-    }
-    out[j] = '\0';
-    return out;
-}
 
 // Reusable validation matching otp.c's check_* helpers.
 static int validate_algo (int algo)   { return (algo == COTP_SHA1 || algo == COTP_SHA256 || algo == COTP_SHA512); }
@@ -138,8 +82,8 @@ cotp_otpauth_uri_parse (const char *uri, cotp_error_t *err)
         if (colon) {
             size_t issuer_len = (size_t)(colon - p);
             size_t account_len = label_len - issuer_len - 1;
-            label_issuer_raw  = pct_decode_n (p, issuer_len);
-            label_account_raw = pct_decode_n (colon + 1, account_len);
+            label_issuer_raw  = cotp_pct_decode_n (p, issuer_len);
+            label_account_raw = cotp_pct_decode_n (colon + 1, account_len);
             if (!label_issuer_raw || !label_account_raw) {
                 free (label_issuer_raw);
                 free (label_account_raw);
@@ -147,7 +91,7 @@ cotp_otpauth_uri_parse (const char *uri, cotp_error_t *err)
                 return NULL;
             }
         } else {
-            label_account_raw = pct_decode_n (p, label_len);
+            label_account_raw = cotp_pct_decode_n (p, label_len);
             if (!label_account_raw) { *errp = INVALID_USER_INPUT; return NULL; }
         }
     }
@@ -183,12 +127,12 @@ cotp_otpauth_uri_parse (const char *uri, cotp_error_t *err)
 
             if (key_len == 6 && strncasecmp (qp, "secret", 6) == 0) {
                 free (u->secret);
-                u->secret = pct_decode_n (val, val_len);
+                u->secret = cotp_pct_decode_n (val, val_len);
                 if (!u->secret) { cotp_otpauth_uri_free (u); *errp = INVALID_USER_INPUT; return NULL; }
                 saw_secret = 1;
             } else if (key_len == 6 && strncasecmp (qp, "issuer", 6) == 0) {
                 if (!u->issuer) {
-                    u->issuer = pct_decode_n (val, val_len);
+                    u->issuer = cotp_pct_decode_n (val, val_len);
                     if (!u->issuer) { cotp_otpauth_uri_free (u); *errp = INVALID_USER_INPUT; return NULL; }
                 }
             } else if (key_len == 9 && strncasecmp (qp, "algorithm", 9) == 0) {
@@ -268,9 +212,9 @@ cotp_otpauth_uri_build (const cotp_otpauth_uri *u, cotp_error_t *err)
 
     // Encode each label component; the ':' separator between issuer and account is added literally below.
     // Same encoded string is reused for both the label-form ("Issuer:Account") and the &issuer= query param.
-    char *enc_issuer        = u->issuer  ? pct_encode (u->issuer)  : NULL;
-    char *enc_account_label = u->account ? pct_encode (u->account) : NULL;
-    char *enc_secret        = pct_encode (u->secret);
+    char *enc_issuer        = u->issuer  ? cotp_pct_encode (u->issuer)  : NULL;
+    char *enc_account_label = u->account ? cotp_pct_encode (u->account) : NULL;
+    char *enc_secret        = cotp_pct_encode (u->secret);
 
     if (!enc_secret || (u->issuer && !enc_issuer) || (u->account && !enc_account_label)) {
         free (enc_issuer); free (enc_account_label); free (enc_secret);

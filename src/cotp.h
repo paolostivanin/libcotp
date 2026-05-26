@@ -12,9 +12,9 @@
 #endif
 
 #define COTP_VERSION_MAJOR  4
-#define COTP_VERSION_MINOR  1
+#define COTP_VERSION_MINOR  2
 #define COTP_VERSION_PATCH  0
-#define COTP_VERSION_STRING "4.1.0"
+#define COTP_VERSION_STRING "4.2.0"
 #define COTP_VERSION_NUMBER ((COTP_VERSION_MAJOR * 10000) + (COTP_VERSION_MINOR * 100) + COTP_VERSION_PATCH)
 
 #define COTP_SHA1   0
@@ -23,6 +23,12 @@
 
 #define MIN_DIGITS 4
 #define MAX_DIGITS 10
+
+// YAOTP (Yandex.Key) fixed parameters.
+#define COTP_YAOTP_PERIOD         30
+#define COTP_YAOTP_DIGITS         8
+#define COTP_YAOTP_MIN_PIN_LENGTH 4
+#define COTP_YAOTP_MAX_PIN_LENGTH 16
 
 typedef enum cotp_error {
     NO_ERROR = 0,
@@ -37,7 +43,10 @@ typedef enum cotp_error {
     EMPTY_STRING,
     MISSING_LEADING_ZERO,
     INVALID_COUNTER,
-    WHMAC_ERROR
+    WHMAC_ERROR,
+    INVALID_YAOTP_SECRET_LENGTH,
+    INVALID_YAOTP_SECRET_CRC,
+    INVALID_YAOTP_PIN
 } cotp_error_t;
 
 // Opaque context for repeated OTP computations (optional ergonomic API)
@@ -119,6 +128,11 @@ COTP_API COTP_WUR char*     cotp_ctx_hotp(cotp_ctx* ctx, const char* base32_enco
 // Steam variants ignore ctx->digits and ctx->algo (Steam fixes both); only ctx->period is used.
 COTP_API COTP_WUR char*     cotp_ctx_steam_totp(cotp_ctx* ctx, const char* base32_encoded_secret, cotp_error_t* err);
 COTP_API COTP_WUR char*     cotp_ctx_steam_totp_at(cotp_ctx* ctx, const char* base32_encoded_secret, long timestamp, cotp_error_t* err);
+// YAOTP variants ignore ctx->{digits,period,algo} entirely (all fixed by the algorithm).
+// The PIN is supplied per-call; libcotp does not retain it. The caller owns the PIN buffer
+// and is responsible for wiping it (cotp_secure_memzero) after use.
+COTP_API COTP_WUR char*     cotp_ctx_yaotp(cotp_ctx* ctx, const char* base32_encoded_secret, const char* pin, cotp_error_t* err);
+COTP_API COTP_WUR char*     cotp_ctx_yaotp_at(cotp_ctx* ctx, const char* base32_encoded_secret, const char* pin, long timestamp, cotp_error_t* err);
 
 /**
  * base32_encode
@@ -207,6 +221,40 @@ COTP_API COTP_WUR char    *get_steam_totp_at (const char   *base32_encoded_secre
                             cotp_error_t *err_code);
 
 /**
+ * get_yaotp / get_yaotp_at
+ *
+ * Generates a YAOTP (Yandex.Key) code: 8 lowercase letters from alphabet 'a'..'z', period 30 s.
+ * The secret must be a base32-encoded Yandex-format blob (key + userId + pinLength + CRC-13);
+ * its decoded length is fixed at 26 bytes. The PIN must be a NUL-terminated string of ASCII
+ * digits whose length matches the value encoded inside the secret (see cotp_yaotp_secret_pin_length).
+ *
+ * Ownership: returns a newly allocated 9-byte NUL-terminated code; caller must free().
+ * On error: returns NULL and sets err_code (INVALID_YAOTP_SECRET_LENGTH / _CRC, INVALID_YAOTP_PIN,
+ * INVALID_B32_INPUT, MEMORY_ALLOCATION_ERROR, WHMAC_ERROR).
+ *
+ * The caller owns the PIN buffer. libcotp does not copy or retain it, but it cannot scrub a
+ * `const char *` it does not own — the caller should cotp_secure_memzero() the PIN after use.
+ */
+COTP_API COTP_WUR char    *get_yaotp         (const char   *base32_encoded_secret,
+                            const char   *pin,
+                            cotp_error_t *err_code);
+
+COTP_API COTP_WUR char    *get_yaotp_at      (const char   *base32_encoded_secret,
+                            const char   *pin,
+                            long          timestamp,
+                            cotp_error_t *err_code);
+
+/**
+ * cotp_yaotp_secret_pin_length
+ *
+ * Returns the PIN length (4..16) encoded inside a Yandex-format YAOTP secret. Useful for UIs
+ * that need to render the PIN-entry field before the user enters anything.
+ * Returns -1 on error and sets *err_code.
+ */
+COTP_API COTP_WUR int      cotp_yaotp_secret_pin_length (const char   *base32_encoded_secret,
+                            cotp_error_t *err_code);
+
+/**
  * otp_to_int
  *
  * Converts a digit string (e.g., from get_totp/get_hotp) to an integer. If leading zeros are present,
@@ -262,6 +310,46 @@ COTP_API COTP_WUR char *cotp_otpauth_uri_build (const cotp_otpauth_uri *u,
  * `secret` field before freeing.
  */
 COTP_API void cotp_otpauth_uri_free (cotp_otpauth_uri *u);
+
+// YAOTP (Yandex.Key) otpauth URI parser/builder.
+// Lives in a separate struct from cotp_otpauth_uri to avoid bloating the standard URI type
+// with Yandex-specific opaque pass-throughs (track_id, uid).
+typedef struct {
+    char *secret;     // owned, base32-encoded Yandex-format blob; non-NULL on successful parse
+    char *account;    // owned, may be NULL (maps to the "name" parameter in Yandex URIs)
+    char *issuer;     // owned, may be NULL
+    char *track_id;   // owned opaque pass-through, may be NULL
+    char *uid;        // owned opaque pass-through, may be NULL
+    int   pin_length; // 4..16
+} cotp_yaotp_uri;
+
+/**
+ * cotp_yaotp_uri_parse
+ *
+ * Parses an `otpauth://yaotp/<account>?secret=...&pin_length=N[&issuer=...][&track_id=...][&uid=...]` URI.
+ * On success, returns a heap-allocated struct that the caller must release via cotp_yaotp_uri_free().
+ * pin_length must be present and in [COTP_YAOTP_MIN_PIN_LENGTH, COTP_YAOTP_MAX_PIN_LENGTH].
+ * Returns NULL on error and sets *err.
+ */
+COTP_API COTP_WUR cotp_yaotp_uri *cotp_yaotp_uri_parse (const char   *uri,
+                                                        cotp_error_t *err);
+
+/**
+ * cotp_yaotp_uri_build
+ *
+ * Builds an `otpauth://yaotp/...` URI from the given struct. Returns a newly allocated NUL-terminated
+ * string the caller must free(). Returns NULL with *err set on validation failure or allocation error.
+ */
+COTP_API COTP_WUR char *cotp_yaotp_uri_build (const cotp_yaotp_uri *u,
+                                              cotp_error_t         *err);
+
+/**
+ * cotp_yaotp_uri_free
+ *
+ * Releases a struct returned by cotp_yaotp_uri_parse(). NULL-safe. Securely zeroes the
+ * `secret` field before freeing.
+ */
+COTP_API void cotp_yaotp_uri_free (cotp_yaotp_uri *u);
 
 #ifdef __cplusplus
 }

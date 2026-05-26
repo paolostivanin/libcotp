@@ -17,6 +17,9 @@ cotp_strerror (cotp_error_t err)
         case MISSING_LEADING_ZERO:     return "leading zero dropped during conversion";
         case INVALID_COUNTER:          return "invalid counter (must be >= 0)";
         case WHMAC_ERROR:              return "HMAC computation error";
+        case INVALID_YAOTP_SECRET_LENGTH: return "YAOTP secret too short";
+        case INVALID_YAOTP_SECRET_CRC:    return "YAOTP secret checksum invalid";
+        case INVALID_YAOTP_PIN:           return "YAOTP PIN invalid (length or non-digit)";
     }
     return "unknown error";
 }

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(cotp VERSION "4.1.0" LANGUAGES "C")
+project(cotp VERSION "4.2.0" LANGUAGES "C")
 
 # Guard against drift between CMake project version and the COTP_VERSION_STRING macro in cotp.h
 file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/src/cotp.h" _cotp_hdr_ver REGEX "^#define COTP_VERSION_STRING")
@@ -29,6 +29,9 @@ if("${HMAC_WRAPPER}" STREQUAL "gcrypt")
     set(HMAC_SOURCE_FILES
             src/utils/whmac_gcrypt.c
     )
+    set(HASH_SOURCE_FILES
+            src/utils/whash_gcrypt.c
+    )
     find_package(Gcrypt 1.8.0 REQUIRED)
     set(HMAC_INCLUDE_DIR ${GCRYPT_INCLUDE_DIR})
     set(HMAC_LIBRARIES ${GCRYPT_LIBRARIES})
@@ -38,6 +41,9 @@ elseif("${HMAC_WRAPPER}" STREQUAL "openssl")
     set(HMAC_SOURCE_FILES
             src/utils/whmac_openssl.c
     )
+    set(HASH_SOURCE_FILES
+            src/utils/whash_openssl.c
+    )
     set(HMAC_INCLUDE_DIR ${OPENSSL_INCLUDE_DIR})
     set(HMAC_LIBRARIES ${OPENSSL_LIBRARIES})
     message(STATUS "libcotp: HMAC backend set to openssl")
@@ -45,6 +51,9 @@ elseif("${HMAC_WRAPPER}" STREQUAL "mbedtls")
     find_package(MbedTLS REQUIRED)
     set(HMAC_SOURCE_FILES
             src/utils/whmac_mbedtls.c
+    )
+    set(HASH_SOURCE_FILES
+            src/utils/whash_mbedtls.c
     )
     set(HMAC_INCLUDE_DIR ${MBEDTLS_INCLUDE_DIRS})
     set(HMAC_LIBRARIES ${MBEDTLS_LIBRARIES})
@@ -61,10 +70,14 @@ option(COTP_ENABLE_VALIDATION "Enable helper APIs for OTP validation in a time w
 
 set(SOURCE_FILES
         src/otp.c
+        src/yaotp.c
         ${HMAC_SOURCE_FILES}
+        ${HASH_SOURCE_FILES}
         src/utils/base32.c
         src/utils/secure_zero.c
+        src/utils/pct.c
         src/utils/otpauth_uri.c
+        src/utils/yaotp_uri.c
         src/ctx.c
         src/strerror.c
 )

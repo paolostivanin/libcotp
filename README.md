@@ -6,9 +6,10 @@
 
 C library that generates TOTP and HOTP according to [RFC-6238](https://www.rfc-editor.org/rfc/rfc6238)
 and [RFC-4226](https://www.rfc-editor.org/rfc/rfc4226), with Base32 codec
-([RFC-4648](https://www.rfc-editor.org/rfc/rfc4648)) and `otpauth://` URI parser/builder.
+([RFC-4648](https://www.rfc-editor.org/rfc/rfc4648)), Steam Guard, YAOTP
+(Yandex.Key) and `otpauth://` URI parser/builder.
 
-**Quick index:** [Public API](#public-api) · [Error Model](#error-model) · [Validation](#validation-helpers-optional) · [Context API](#context-api) · [otpauth:// URIs](#otpauth-uris) · [Base32](#base32-encoding--decoding) · [Utilities](#utilities) · [Operational Notes](#operational-notes)
+**Quick index:** [Public API](#public-api) · [Error Model](#error-model) · [Validation](#validation-helpers-optional) · [Context API](#context-api) · [otpauth:// URIs](#otpauth-uris) · [YAOTP](#yaotp-yandexkey) · [Base32](#base32-encoding--decoding) · [Utilities](#utilities) · [Operational Notes](#operational-notes)
 
 ## Requirements
 
@@ -71,6 +72,18 @@ char *get_totp_at(const char *base32_secret,
                   int period,
                   int algo,
                   cotp_error_t *err);
+
+char *get_yaotp(const char *base32_secret,
+                const char *pin,
+                cotp_error_t *err);
+
+char *get_yaotp_at(const char *base32_secret,
+                   const char *pin,
+                   long timestamp,
+                   cotp_error_t *err);
+
+int cotp_yaotp_secret_pin_length(const char *base32_secret,
+                                 cotp_error_t *err);
 
 int64_t otp_to_int(const char *otp,
                    cotp_error_t *err);
@@ -135,11 +148,14 @@ free(code);
 | `MISSING_LEADING_ZERO` | Leading zeroes stripped |
 | `MEMORY_ALLOCATION_ERROR` | Allocation failure |
 | `EMPTY_STRING` | Input was empty |
+| `INVALID_YAOTP_SECRET_LENGTH` | YAOTP secret too short or pinLength byte out of range |
+| `INVALID_YAOTP_SECRET_CRC` | YAOTP secret's CRC-13 checksum did not verify |
+| `INVALID_YAOTP_PIN` | YAOTP PIN NULL, wrong length, or contains non-digits |
 
 Return rules:
 
-- `get_totp`, `get_totp_at`, `get_steam_totp`, `get_steam_totp_at`, `get_hotp` → `NULL` on failure
-- `otp_to_int` → `-1` on failure
+- `get_totp`, `get_totp_at`, `get_steam_totp`, `get_steam_totp_at`, `get_hotp`, `get_yaotp`, `get_yaotp_at` → `NULL` on failure
+- `otp_to_int`, `cotp_yaotp_secret_pin_length` → `-1` on failure
 - `cotp_strerror(err)` returns a static, non-NULL, NUL-terminated description for any
   `cotp_error_t` value. Unknown values return `"unknown error"`. Do **not** `free()` the result.
 
@@ -206,6 +222,10 @@ char     *cotp_ctx_hotp(cotp_ctx *ctx, const char *base32_secret, long counter, 
 /* Steam variants ignore ctx->digits and ctx->algo (Steam fixes both); only ctx->period is used. */
 char     *cotp_ctx_steam_totp(cotp_ctx *ctx, const char *base32_secret, cotp_error_t *err);
 char     *cotp_ctx_steam_totp_at(cotp_ctx *ctx, const char *base32_secret, long timestamp, cotp_error_t *err);
+
+/* YAOTP variants ignore ctx->{digits,period,algo} entirely (all hardcoded by the algorithm). */
+char     *cotp_ctx_yaotp(cotp_ctx *ctx, const char *base32_secret, const char *pin, cotp_error_t *err);
+char     *cotp_ctx_yaotp_at(cotp_ctx *ctx, const char *base32_secret, const char *pin, long timestamp, cotp_error_t *err);
 
 #ifdef COTP_ENABLE_VALIDATION
 int       cotp_ctx_validate_totp(cotp_ctx *ctx, const char *user_code, const char *base32_secret,
@@ -288,21 +308,106 @@ cotp_otpauth_uri_free(u);
 
 ---
 
+## YAOTP (Yandex.Key)
+
+Proprietary OTP scheme used by Yandex 2FA. Produces eight lowercase letters
+(`a`–`z`) every 30 seconds. Algorithm ported from
+[KeeYaOtp](https://github.com/norblik/KeeYaOtp) (the canonical reference);
+matches Yandex servers including the SHA-256 leading-zero quirk.
+
+```c
+#define COTP_YAOTP_PERIOD         30
+#define COTP_YAOTP_DIGITS         8
+#define COTP_YAOTP_MIN_PIN_LENGTH 4
+#define COTP_YAOTP_MAX_PIN_LENGTH 16
+
+char *get_yaotp(const char *base32_secret,
+                const char *pin,
+                cotp_error_t *err);
+
+char *get_yaotp_at(const char *base32_secret,
+                   const char *pin,
+                   long timestamp,
+                   cotp_error_t *err);
+
+int   cotp_yaotp_secret_pin_length(const char *base32_secret,
+                                   cotp_error_t *err);
+```
+
+Behavior:
+
+- The `base32_secret` is a Yandex-format blob: base32 of `[16-byte key][8-byte userId][pinLength nibble + 12-bit CRC-13]`.
+  Decoded length must be ≥ 26 bytes. The CRC-13 checksum (polynomial `0x18F3`) is verified before
+  any code is computed; a flipped bit returns `INVALID_YAOTP_SECRET_CRC`.
+- The PIN must be ASCII digits, length 4–16, matching the value encoded in the secret. Mismatch
+  returns `INVALID_YAOTP_PIN`. Call `cotp_yaotp_secret_pin_length` first if your UI needs to
+  size the PIN-entry field.
+- All output parameters are fixed by the algorithm: 30-second period, SHA-256, 8 letters, `a`–`z`
+  alphabet. `digits`, `period`, and `algo` from a `cotp_ctx` are **ignored** by the ctx wrappers.
+- Return values: 9-byte heap string on success (caller `free()`s); `NULL` on error with `*err` set.
+- The library does not retain or copy the PIN, but it cannot scrub a `const char *` it doesn't own.
+  Wipe the PIN buffer yourself with `cotp_secure_memzero` after use.
+
+Example:
+
+```c
+const char *secret = "LA2V6KMCGYMWWVEW64RNP3JA3IAAAAAAHTSG4HRZPI";
+char pin[] = "7586";
+
+cotp_error_t err;
+int expected_len = cotp_yaotp_secret_pin_length(secret, &err);
+/* expected_len == 4 */
+
+char *code = get_yaotp(secret, pin, &err);
+/* code is e.g. "oactmacq" */
+
+free(code);
+cotp_secure_memzero(pin, sizeof pin - 1);
+```
+
+### YAOTP `otpauth://` URIs
+
+Yandex apps issue QR codes of the form
+`otpauth://yaotp/<account>?secret=…&pin_length=N[&issuer=…][&track_id=…][&uid=…]`.
+A separate struct (`cotp_yaotp_uri`) parses and builds these without overloading the standard
+`cotp_otpauth_uri` with Yandex-specific opaque fields.
+
+```c
+typedef struct {
+    char *secret;     /* base32, required */
+    char *account;    /* may be NULL (Yandex's "name" field maps here) */
+    char *issuer;     /* may be NULL */
+    char *track_id;   /* opaque pass-through, may be NULL */
+    char *uid;        /* opaque pass-through, may be NULL */
+    int   pin_length; /* 4–16, required */
+} cotp_yaotp_uri;
+
+cotp_yaotp_uri *cotp_yaotp_uri_parse(const char *uri, cotp_error_t *err);
+char           *cotp_yaotp_uri_build(const cotp_yaotp_uri *u, cotp_error_t *err);
+void            cotp_yaotp_uri_free(cotp_yaotp_uri *u);
+```
+
+`_parse` requires both `secret` and `pin_length`. Unknown query keys are silently ignored;
+`track_id` and `uid` are capped at 128 decoded bytes to prevent URI-bomb allocations.
+`_free` securely zeroes `secret` before releasing.
+
+---
+
 ## Version Macros
 
 ```c
 #define COTP_VERSION_MAJOR  4
-#define COTP_VERSION_MINOR  1
+#define COTP_VERSION_MINOR  2
 #define COTP_VERSION_PATCH  0
-#define COTP_VERSION_STRING "4.1.0"
+#define COTP_VERSION_STRING "4.2.0"
 #define COTP_VERSION_NUMBER /* MAJOR*10000 + MINOR*100 + PATCH */
 ```
 
 Use `COTP_VERSION_NUMBER` for compile-time conditionals:
 
 ```c
-#if COTP_VERSION_NUMBER >= 40100
-    /* APIs added in 4.1.0 are available */
+#if COTP_VERSION_NUMBER >= 40200
+    /* APIs added in 4.2.0 (YAOTP) are available */
 #endif
 ```
 
