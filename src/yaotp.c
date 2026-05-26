@@ -109,13 +109,6 @@ yaotp_parse_secret (const char    *base32_secret,
         return -1;
     }
 
-    if (decoded_len_expected < YAOTP_SECRET_MIN_BYTES) {
-        cotp_secure_memzero (decoded, decoded_len_expected);
-        free (decoded);
-        *err = INVALID_YAOTP_SECRET_LENGTH;
-        return -1;
-    }
-
     if (!yaotp_crc_valid (decoded, decoded_len_expected)) {
         cotp_secure_memzero (decoded, decoded_len_expected);
         free (decoded);
@@ -123,7 +116,14 @@ yaotp_parse_secret (const char    *base32_secret,
         return -1;
     }
 
-    memcpy (out_key, decoded + (decoded_len_expected - 26), YAOTP_KEY_BYTES);
+    if (decoded_len_expected < YAOTP_SECRET_MIN_BYTES) {
+        cotp_secure_memzero (decoded, decoded_len_expected);
+        free (decoded);
+        *err = INVALID_YAOTP_SECRET_LENGTH;
+        return -1;
+    }
+
+    memcpy (out_key, decoded + (decoded_len_expected - YAOTP_SECRET_MIN_BYTES), YAOTP_KEY_BYTES);
     *out_pin_len = (int)((decoded[decoded_len_expected - 2] >> 4) + 1);
 
     cotp_secure_memzero (decoded, decoded_len_expected);
