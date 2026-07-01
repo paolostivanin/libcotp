@@ -156,6 +156,41 @@ Test(yaotp_uri, build_rejects_invalid_pin_length) {
     cr_expect_eq (err, INVALID_YAOTP_PIN);
 }
 
+Test(yaotp_uri, end_to_end_uri_to_code) {
+    // Chain the URI parser to the generator: parse, then feed the extracted secret + PIN
+    // straight into get_yaotp_at. Uses the same known-answer vector as test_yaotp.c.
+    const char *uri = "otpauth://yaotp/user?secret=LA2V6KMCGYMWWVEW64RNP3JA3IAAAAAAHTSG4HRZPI&pin_length=4";
+    cotp_error_t err = NO_ERROR;
+    cotp_yaotp_uri *u = cotp_yaotp_uri_parse (uri, &err);
+    cr_assert_not_null (u);
+    cr_expect_eq (err, NO_ERROR);
+    cr_expect_eq (u->pin_length, 4);
+
+    char *code = get_yaotp_at (u->secret, "7586", 1581064020L, &err);
+    cr_assert_not_null (code);
+    cr_expect_eq (err, NO_ERROR);
+    cr_expect_str_eq (code, "oactmacq");
+
+    free (code);
+    cotp_yaotp_uri_free (u);
+}
+
+Test(yaotp_uri, build_percent_encodes_account) {
+    // '@' is not RFC 3986 unreserved, so the shared pct codec must emit %40 in the label.
+    cotp_yaotp_uri u = {0};
+    u.secret     = strdup ("LA2V6KMCGYMWWVEW64RNP3JA3IAAAAAAHTSG4HRZPI");
+    u.account    = strdup ("alice@yandex.ru");
+    u.pin_length = 4;
+    cotp_error_t err = NO_ERROR;
+    char *built = cotp_yaotp_uri_build (&u, &err);
+    cr_assert_not_null (built);
+    cr_expect_eq (err, NO_ERROR);
+    cr_expect_not_null (strstr (built, "yaotp/alice%40yandex.ru"));
+    free (built);
+    free (u.secret);
+    free (u.account);
+}
+
 Test(yaotp_uri, free_null_is_safe) {
     cotp_yaotp_uri_free (NULL);
 }

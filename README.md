@@ -398,16 +398,16 @@ void            cotp_yaotp_uri_free(cotp_yaotp_uri *u);
 ```c
 #define COTP_VERSION_MAJOR  4
 #define COTP_VERSION_MINOR  2
-#define COTP_VERSION_PATCH  0
-#define COTP_VERSION_STRING "4.2.0"
+#define COTP_VERSION_PATCH  1
+#define COTP_VERSION_STRING "4.2.1"
 #define COTP_VERSION_NUMBER /* MAJOR*10000 + MINOR*100 + PATCH */
 ```
 
 Use `COTP_VERSION_NUMBER` for compile-time conditionals:
 
 ```c
-#if COTP_VERSION_NUMBER >= 40200
-    /* APIs added in 4.2.0 (YAOTP) are available */
+#if COTP_VERSION_NUMBER >= 40201
+    /* APIs added in 4.2.1 (YAOTP) are available */
 #endif
 ```
 

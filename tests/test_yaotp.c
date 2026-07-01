@@ -163,3 +163,58 @@ Test(yaotp, get_yaotp_returns_something) {
     cr_expect_eq (strlen (code), 8);
     free (code);
 }
+
+Test(yaotp, secret_normalization_lowercase) {
+    // Yandex QR secrets are uppercase base32; the library normalizes internally.
+    // A lowercased secret must yield the same code (proves CRC/key extraction survives
+    // normalization and that yaotp_b32_decoded_len agrees with base32_decode).
+    cotp_error_t err = -1;
+    char *code = get_yaotp_at ("la2v6kmcgymwwvew64rnp3ja3iaaaaaahtsg4hrzpi", kPin4, 1581064020L, &err);
+    cr_assert_not_null (code);
+    cr_expect_eq (err, NO_ERROR);
+    cr_expect_str_eq (code, "oactmacq");
+    free (code);
+}
+
+Test(yaotp, secret_normalization_spaces) {
+    // Spaces are stripped during normalization; grouping the secret must not change the code.
+    cotp_error_t err = -1;
+    char *code = get_yaotp_at ("LA2V 6KMC GYMW WVEW 64RN P3JA 3IAA AAAA HTSG 4HRZ PI",
+                              kPin4, 1581064020L, &err);
+    cr_assert_not_null (code);
+    cr_expect_eq (err, NO_ERROR);
+    cr_expect_str_eq (code, "oactmacq");
+    free (code);
+}
+
+Test(yaotp, pin_length_error_paths) {
+    cotp_error_t err = NO_ERROR;
+
+    // NULL secret.
+    cr_expect_eq (cotp_yaotp_secret_pin_length (NULL, &err), -1);
+    cr_expect_eq (err, INVALID_USER_INPUT);
+
+    // Valid base32 but too short to be a Yandex secret (10 bytes < 26).
+    err = NO_ERROR;
+    cr_expect_eq (cotp_yaotp_secret_pin_length ("JBSWY3DPEHPK3PXP", &err), -1);
+    cr_expect_eq (err, INVALID_YAOTP_SECRET_LENGTH);
+
+    // Corrupted CRC (same tamper as the crc_invalid test).
+    char tampered[64];
+    snprintf (tampered, sizeof (tampered), "%s", kSecret4);
+    tampered[0] = 'M';
+    err = NO_ERROR;
+    cr_expect_eq (cotp_yaotp_secret_pin_length (tampered, &err), -1);
+    cr_expect_eq (err, INVALID_YAOTP_SECRET_CRC);
+
+    // NULL err_code argument must not crash and still returns the pin length.
+    cr_expect_eq (cotp_yaotp_secret_pin_length (kSecret4, NULL), 4);
+}
+
+Test(yaotp, null_err_code_ok) {
+    // get_yaotp_at supports a NULL err_code; it must not crash and must still compute.
+    char *code = get_yaotp_at (kSecret4, kPin4, 1581064020L, NULL);
+    cr_assert_not_null (code);
+    cr_expect_str_eq (code, "oactmacq");
+    free (code);
+}

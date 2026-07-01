@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(cotp VERSION "4.2.0" LANGUAGES "C")
+project(cotp VERSION "4.2.1" LANGUAGES "C")
 
 # Guard against drift between CMake project version and the COTP_VERSION_STRING macro in cotp.h
 file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/src/cotp.h" _cotp_hdr_ver REGEX "^#define COTP_VERSION_STRING")

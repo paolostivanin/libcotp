@@ -109,13 +109,8 @@ yaotp_parse_secret (const char    *base32_secret,
         return -1;
     }
 
-    if (decoded_len_expected < YAOTP_SECRET_MIN_BYTES) {
-        cotp_secure_memzero (decoded, decoded_len_expected);
-        free (decoded);
-        *err = INVALID_YAOTP_SECRET_LENGTH;
-        return -1;
-    }
-
+    // decoded_len_expected (validated >= YAOTP_SECRET_MIN_BYTES above) equals base32_decode's
+    // own (chars*5)/8 allocation, so every offset read/wiped below is in-bounds.
     if (!yaotp_crc_valid (decoded, decoded_len_expected)) {
         cotp_secure_memzero (decoded, decoded_len_expected);
         free (decoded);
@@ -129,9 +124,10 @@ yaotp_parse_secret (const char    *base32_secret,
     cotp_secure_memzero (decoded, decoded_len_expected);
     free (decoded);
 
+    // Secret bytes are fine here; it's the embedded pin-length nibble that is out of range.
     if (*out_pin_len < COTP_YAOTP_MIN_PIN_LENGTH || *out_pin_len > COTP_YAOTP_MAX_PIN_LENGTH) {
         cotp_secure_memzero (out_key, YAOTP_KEY_BYTES);
-        *err = INVALID_YAOTP_SECRET_LENGTH;
+        *err = INVALID_YAOTP_PIN;
         return -1;
     }
 

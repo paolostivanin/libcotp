@@ -70,6 +70,14 @@ find_library(MBEDCRYPTO_LIBRARY NAMES "mbedcrypto"
         ${PC_MBEDTLS_LIBDIR}
         ${PC_MBEDTLS_LIBRARY_DIRS}
 )
+# MbedTLS 4.0 split crypto into TF-PSA-Crypto; the PSA symbols the mbedtls backend
+# needs live in libtfpsacrypto. Optional: absent on 2.x/3.x (those keep the legacy
+# path), and some 4.x packages still re-export PSA from libmbedcrypto.
+find_library(TFPSACRYPTO_LIBRARY NAMES "tfpsacrypto"
+        HINTS
+        ${PC_MBEDTLS_LIBDIR}
+        ${PC_MBEDTLS_LIBRARY_DIRS}
+)
 
 if(PC_MBEDTLS_VERSION)
     set(MBEDTLS_VERSION ${PC_MBEDTLS_VERSION})
@@ -106,6 +114,9 @@ find_package_handle_standard_args(MbedTLS
 if(MBEDTLS_FOUND)
     set(MBEDTLS_INCLUDE_DIRS ${MBEDTLS_INCLUDE_DIR})
     set(MBEDTLS_LIBRARIES    ${MBEDTLS_LIBRARY} ${MBEDX509_LIBRARY} ${MBEDCRYPTO_LIBRARY})
+    if(TFPSACRYPTO_LIBRARY)
+        list(APPEND MBEDTLS_LIBRARIES ${TFPSACRYPTO_LIBRARY})
+    endif()
 endif()
 
-mark_as_advanced(MBEDTLS_INCLUDE_DIR MBEDTLS_LIBRARY MBEDX509_LIBRARY MBEDCRYPTO_LIBRARY)
+mark_as_advanced(MBEDTLS_INCLUDE_DIR MBEDTLS_LIBRARY MBEDX509_LIBRARY MBEDCRYPTO_LIBRARY TFPSACRYPTO_LIBRARY)
