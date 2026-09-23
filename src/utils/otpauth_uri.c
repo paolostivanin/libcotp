@@ -17,6 +17,16 @@ static int validate_algo (int algo)   { return (algo == COTP_SHA1 || algo == COT
 static int validate_digits (int d)    { return (d >= MIN_DIGITS && d <= MAX_DIGITS); }
 static int validate_period (int p)    { return (p > 0 && p <= 120); }
 
+// A secret made only of ASCII spaces (or empty) would later be normalized to an
+// empty string by the generators; reject it at the URI boundary instead.
+static int secret_is_blank (const char *s) {
+    if (!s) return 1;
+    for (; *s; s++) {
+        if (*s != ' ') return 0;
+    }
+    return 1;
+}
+
 static int parse_int (const char *s, size_t len, long *out) {
     if (len == 0 || len > 30) return 0;
     char buf[32];
@@ -90,6 +100,11 @@ cotp_otpauth_uri_parse (const char *uri, cotp_error_t *err)
                 *errp = INVALID_USER_INPUT;
                 return NULL;
             }
+            // An empty label issuer (":account") must not shadow &issuer=.
+            if (label_issuer_raw[0] == '\0') {
+                free (label_issuer_raw);
+                label_issuer_raw = NULL;
+            }
         } else {
             label_account_raw = cotp_pct_decode_n (p, label_len);
             if (!label_account_raw) { *errp = INVALID_USER_INPUT; return NULL; }
@@ -118,15 +133,24 @@ cotp_otpauth_uri_parse (const char *uri, cotp_error_t *err)
     if (qmark) {
         const char *qp = qmark + 1;
         while (*qp) {
-            const char *eq = strchr (qp, '=');
-            if (!eq) break;
+            const char *amp = strchr (qp, '&');
+            size_t seg_len = amp ? (size_t)(amp - qp) : strlen (qp);
+            const char *eq = memchr (qp, '=', seg_len);
+            if (!eq) {
+                // Segment without '=': skip it, but keep parsing the rest.
+                if (!amp) break;
+                qp = amp + 1;
+                continue;
+            }
             size_t key_len = (size_t)(eq - qp);
             const char *val = eq + 1;
-            const char *amp = strchr (val, '&');
-            size_t val_len = amp ? (size_t)(amp - val) : strlen (val);
+            size_t val_len = seg_len - key_len - 1;
 
             if (key_len == 6 && strncasecmp (qp, "secret", 6) == 0) {
-                free (u->secret);
+                if (u->secret) {
+                    cotp_secure_memzero (u->secret, strlen (u->secret));
+                    free (u->secret);
+                }
                 u->secret = cotp_pct_decode_n (val, val_len);
                 if (!u->secret) { cotp_otpauth_uri_free (u); *errp = INVALID_USER_INPUT; return NULL; }
                 saw_secret = 1;
@@ -168,7 +192,7 @@ cotp_otpauth_uri_parse (const char *uri, cotp_error_t *err)
     }
 
     // Final validation
-    if (!saw_secret || !u->secret || u->secret[0] == '\0') {
+    if (!saw_secret || secret_is_blank (u->secret)) {
         cotp_otpauth_uri_free (u);
         *errp = INVALID_USER_INPUT;
         return NULL;
@@ -198,7 +222,7 @@ cotp_otpauth_uri_build (const cotp_otpauth_uri *u, cotp_error_t *err)
     cotp_error_t local_err = NO_ERROR;
     cotp_error_t *errp = err ? err : &local_err;
 
-    if (!u || !u->secret || u->secret[0] == '\0')                                   { *errp = INVALID_USER_INPUT; return NULL; }
+    if (!u || secret_is_blank (u->secret))                                         { *errp = INVALID_USER_INPUT; return NULL; }
     if (u->type != COTP_OTPAUTH_TOTP && u->type != COTP_OTPAUTH_HOTP)               { *errp = INVALID_USER_INPUT; return NULL; }
     if (!is_string_valid_b32 (u->secret))                                           { *errp = INVALID_B32_INPUT;  return NULL; }
     if (!validate_algo (u->algo))                                                   { *errp = INVALID_ALGO;       return NULL; }

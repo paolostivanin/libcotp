@@ -45,10 +45,6 @@ static const uint8_t b32_valid[128] = {
 
 static int           get_char_index (uint8_t        c);
 
-static bool          valid_b32_str (const char *str);
-
-static bool          has_space      (const char *str);
-
 static cotp_error_t  check_input    (const uint8_t *user_data,
                                      size_t         data_len,
                                      size_t         max_len);
@@ -62,18 +58,21 @@ base32_encode (const uint8_t *user_data,
                size_t         data_len,
                cotp_error_t  *err_code)
 {
+    cotp_error_t local_err = NO_ERROR;
+    cotp_error_t *errp = err_code ? err_code : &local_err;
+
     cotp_error_t error = check_input (user_data, data_len, MAX_ENCODE_INPUT_LEN);
     if (error == EMPTY_STRING) {
         char *empty = strdup ("");
         if (empty == NULL) {
-            *err_code = MEMORY_ALLOCATION_ERROR;
+            *errp = MEMORY_ALLOCATION_ERROR;
             return NULL;
         }
-        *err_code = error;
+        *errp = error;
         return empty;
     }
     if (error != NO_ERROR) {
-        *err_code = error;
+        *errp = error;
         return NULL;
     }
 
@@ -101,7 +100,7 @@ base32_encode (const uint8_t *user_data,
     size_t output_length = (user_data_chars * 8 + 4) / 5;
     char *encoded_data = calloc (output_length + num_of_equals + 1, 1);
     if (encoded_data == NULL) {
-        *err_code = MEMORY_ALLOCATION_ERROR;
+        *errp = MEMORY_ALLOCATION_ERROR;
         return NULL;
     }
 
@@ -122,7 +121,7 @@ base32_encode (const uint8_t *user_data,
     }
     encoded_data[output_length + num_of_equals] = '\0';
 
-    *err_code = NO_ERROR;
+    *errp = NO_ERROR;
 
     return encoded_data;
 }
@@ -133,24 +132,27 @@ base32_decode (const char   *user_data_untrimmed,
                size_t        data_len,
                cotp_error_t *err_code)
 {
+    cotp_error_t local_err = NO_ERROR;
+    cotp_error_t *errp = err_code ? err_code : &local_err;
+
     cotp_error_t error = check_input ((uint8_t *)user_data_untrimmed, data_len, MAX_DECODE_BASE32_INPUT_LEN);
     if (error == EMPTY_STRING) {
         char *empty = strdup ("");
         if (empty == NULL) {
-            *err_code = MEMORY_ALLOCATION_ERROR;
+            *errp = MEMORY_ALLOCATION_ERROR;
             return NULL;
         }
-        *err_code = error;
+        *errp = error;
         return (uint8_t *)empty;
     }
     if (error != NO_ERROR) {
-        *err_code = error;
+        *errp = error;
         return NULL;
     }
 
     char *user_data = strdup (user_data_untrimmed);
     if (user_data == NULL) {
-        *err_code = MEMORY_ALLOCATION_ERROR;
+        *errp = MEMORY_ALLOCATION_ERROR;
         return NULL;
     }
     size_t user_data_buflen = strlen (user_data);
@@ -163,7 +165,7 @@ base32_decode (const char   *user_data_untrimmed,
     if (!is_string_valid_b32 (user_data)) {
         cotp_secure_memzero (user_data, user_data_buflen);
         free (user_data);
-        *err_code = INVALID_B32_INPUT;
+        *errp = INVALID_B32_INPUT;
         return NULL;
     }
 
@@ -180,7 +182,7 @@ base32_decode (const char   *user_data_untrimmed,
     if (decoded_data == NULL) {
         cotp_secure_memzero (user_data, user_data_buflen);
         free (user_data);
-        *err_code = MEMORY_ALLOCATION_ERROR;
+        *errp = MEMORY_ALLOCATION_ERROR;
         return NULL;
     }
 
@@ -208,7 +210,7 @@ base32_decode (const char   *user_data_untrimmed,
     cotp_secure_memzero (user_data, user_data_buflen);
     free (user_data);
 
-    *err_code = NO_ERROR;
+    *errp = NO_ERROR;
 
     return decoded_data;
 }
@@ -221,34 +223,18 @@ is_string_valid_b32 (const char *user_data)
         return false;
     }
 
-    if (has_space (user_data)) {
-        char *trimmed = strdup (user_data);
-        if (trimmed == NULL) {
-            return false;
-        }
-        strip_char (trimmed);
-        bool valid = valid_b32_str (trimmed);
-        free(trimmed);
-        return valid;
-    }
-
-    return valid_b32_str (user_data);
-}
-
-
-static bool
-valid_b32_str (const char *str)
-{
-    if (str == NULL) {
-        return false;
-    }
-
+    // Allocation-free scan. ASCII spaces are ignored (as base32_decode does before
+    // validating), so the length used for the padding rules is the stripped length.
     size_t len = 0;
     size_t pad_count = 0;
     bool seen_pad = false;
 
-    while (*str) {
-        uint8_t c = (uint8_t)*str;
+    while (*user_data) {
+        uint8_t c = (uint8_t)*user_data;
+        if (c == ' ') {
+            user_data++;
+            continue;
+        }
         if (c >= 128 || !b32_valid[c]) {
             return false;
         }
@@ -260,7 +246,7 @@ valid_b32_str (const char *str)
             return false;
         }
         len++;
-        str++;
+        user_data++;
     }
 
     // If padding is present, validate count: valid padding counts are 0, 1, 3, 4, 6
@@ -275,19 +261,6 @@ valid_b32_str (const char *str)
     }
 
     return true;
-}
-
-
-static bool
-has_space (const char *str)
-{
-    while (*str) {
-        if (*str == ' ') {
-            return true;
-        }
-        str++;
-    }
-    return false;
 }
 
 

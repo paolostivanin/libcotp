@@ -68,6 +68,9 @@ whmac_setkey (whmac_handle_t *hd,
               const unsigned char  *buffer,
               size_t          buflen)
 {
+    if (hd == NULL) {
+        return WHMAC_ERROR;
+    }
     if (gcry_md_setkey (hd->hd, buffer, buflen)) {
         return WHMAC_ERROR;
     }
@@ -91,9 +94,9 @@ whmac_finalize (whmac_handle_t *hd,
                 unsigned char  *buffer,
                 size_t          buflen)
 {
-    ssize_t dlen = gcry_md_get_algo_dlen (hd->algo);
+    size_t dlen = gcry_md_get_algo_dlen (hd->algo);
     if (buffer == NULL) {
-        return dlen;
+        return (ssize_t)dlen;
     }
 
     if (dlen > buflen) {
@@ -107,5 +110,5 @@ whmac_finalize (whmac_handle_t *hd,
         return -MEMORY_ALLOCATION_ERROR;
     }
     memcpy (buffer, hmac_tmp, dlen);
-    return dlen;
+    return (ssize_t)dlen;
 }

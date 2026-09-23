@@ -17,7 +17,7 @@ and [RFC-4226](https://www.rfc-editor.org/rfc/rfc4226), with Base32 codec
 - One crypto backend:
   - libgcrypt ≥ 1.8.0
   - OpenSSL ≥ 3.0.0
-  - MbedTLS 2.x or 3.x
+  - MbedTLS 2.x, 3.x or 4.x
 
 ## Build and Install
 
@@ -25,7 +25,7 @@ and [RFC-4226](https://www.rfc-editor.org/rfc/rfc4226), with Base32 codec
 git clone https://github.com/paolostivanin/libcotp.git
 cd libcotp
 mkdir build && cd build
-cmake -DCMAKE_INSTALL_PREFIX=/usr ..
+cmake -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Release ..
 make
 sudo make install
 ```
@@ -39,6 +39,21 @@ sudo make install
 | `-DHMAC_WRAPPER=<gcrypt, openssl, mbedtls>` | gcrypt | Select crypto backend |
 | `-DCOTP_ENABLE_VALIDATION=ON` | OFF | Enable validation helper APIs |
 | `-DCOTP_BUILD_FUZZERS=ON` | OFF | Build libFuzzer harnesses (requires Clang) |
+
+### Tested platforms
+
+The code is C11 and is tested on Linux (Debian stable and Ubuntu 24.04) with GCC
+and Clang, for all three crypto backends. The codec and OTP paths are
+endianness- and word-size-independent (`uint64_t`/`uint8_t` arithmetic). CI also
+builds and tests the gcrypt backend on 32-bit Debian. On 32-bit/ILP32 platforms
+the public API still accepts `long` timestamps/counters, so timestamps beyond
+2038 are not representable there.
+
+MSVC is not a supported build: CMake guards some GCC-only flags, but the
+sources rely on POSIX/GCC features. The volatile-write fallback in
+`cotp_secure_memzero` is portable, and `whmac.h` provides an `ssize_t`
+compatibility typedef, but availability of a Windows build should not be
+assumed without testing.
 
 ---
 
@@ -102,7 +117,7 @@ triggers a compile warning.
 - `period`: 1–120 seconds inclusive
 - `algo`: `COTP_SHA1`, `COTP_SHA256`, `COTP_SHA512`
 - `counter`: non-negative
-- `timestamp`: UNIX epoch seconds
+- `timestamp`: non-negative UNIX epoch seconds (`INVALID_COUNTER` otherwise)
 
 Secrets are normalized (spaces removed, lowercase → uppercase).
 
@@ -117,6 +132,7 @@ Secrets are normalized (spaces removed, lowercase → uppercase).
   - returns `-1` on invalid input
   - returns integer on success
   - strips leading zeroes and sets `MISSING_LEADING_ZERO` when applicable
+    (any leading `0`, including an all-zero code such as `"0000"`)
 
 Example:
 
@@ -148,9 +164,9 @@ free(code);
 | `MISSING_LEADING_ZERO` | Leading zeroes stripped |
 | `MEMORY_ALLOCATION_ERROR` | Allocation failure |
 | `EMPTY_STRING` | Input was empty |
-| `INVALID_YAOTP_SECRET_LENGTH` | YAOTP secret too short or pinLength byte out of range |
+| `INVALID_YAOTP_SECRET_LENGTH` | YAOTP secret too short (decoded length < 26 bytes) |
 | `INVALID_YAOTP_SECRET_CRC` | YAOTP secret's CRC-13 checksum did not verify |
-| `INVALID_YAOTP_PIN` | YAOTP PIN NULL, wrong length, or contains non-digits |
+| `INVALID_YAOTP_PIN` | YAOTP PIN NULL, wrong length, or contains non-digits; also returned when the embedded pin-length nibble decodes to a PIN length outside 4–16 (nibble values 0–2 mean 1–3 and are rejected) |
 
 Return rules:
 
@@ -183,9 +199,12 @@ Returns:
 - `0` otherwise
 
 `window` is symmetric and clamped to a maximum of `1024`; values above that
-return `INVALID_USER_INPUT`. The internal time arithmetic is overflow-safe;
-deltas whose timestamp would overflow `long` are silently skipped. The compare
-uses constant-time byte comparison.
+return `INVALID_USER_INPUT`, and `INT_MIN` is rejected explicitly (it cannot be
+negated safely). A negative base timestamp returns `INVALID_COUNTER`. The internal
+time arithmetic is overflow-safe; deltas whose
+timestamp would overflow `long`, and pre-epoch timestamps (`t < 0`, rejected by
+the generators), are silently skipped. The compare uses constant-time byte
+comparison.
 
 Example — accept a code generated one period in the past with `window=1`:
 
@@ -287,7 +306,13 @@ Behavior:
 - Label fields are percent-decoded; missing query parameters use the defaults shown above.
 - For HOTP, the `counter` query parameter is required. Missing → `INVALID_COUNTER`.
 - If both label-issuer (`Foo:bar`) and `&issuer=` are present, the **label-issuer wins**.
-- Unknown query keys are silently ignored.
+  A label with an empty issuer (`:bar`) does not count as a label-issuer.
+- Unknown query keys are silently ignored; query segments without `=` are skipped.
+- Numeric values (`digits`, `period`, `counter`) are parsed with `strtol` semantics, so a
+  leading `+` or surrounding whitespace is accepted (e.g. `digits=+6`). Range validation is
+  applied afterwards. Requiring digit-only input would be a compatibility change.
+- Percent-escapes must be complete: a `%` not followed by two hex digits is rejected as
+  malformed input. A secret consisting only of ASCII spaces is rejected.
 - `_parse` returns a heap struct; release it with `cotp_otpauth_uri_free`. The free function
   securely zeroes `secret` before releasing.
 - `_build` validates fields against the same bounds as `get_hotp` / `get_totp_at` and returns a
@@ -387,9 +412,12 @@ char           *cotp_yaotp_uri_build(const cotp_yaotp_uri *u, cotp_error_t *err)
 void            cotp_yaotp_uri_free(cotp_yaotp_uri *u);
 ```
 
-`_parse` requires both `secret` and `pin_length`. Unknown query keys are silently ignored;
-`track_id` and `uid` are capped at 128 decoded bytes to prevent URI-bomb allocations.
-`_free` securely zeroes `secret` before releasing.
+`_parse` requires both `secret` and `pin_length`. Unknown query keys are silently
+ignored and segments without `=` are skipped. `pin_length` uses the same lenient
+`strtol` numeric parsing as `cotp_otpauth_uri_parse`. Secrets made only of ASCII
+spaces are rejected. `track_id` and `uid` are capped at 128 decoded bytes to prevent
+URI-bomb allocations, and `_build` enforces the same cap so it cannot emit a URI that
+`_parse` would refuse. `_free` securely zeroes `secret` before releasing.
 
 ---
 

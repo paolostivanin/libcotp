@@ -8,4 +8,6 @@ Description: C library that generates TOTP and HOTP
 Version: @CMAKE_PROJECT_VERSION@
 URL: https://github.com/paolostivanin/libcotp
 Libs: -L${libdir} -lcotp
+Libs.private: @COTP_PKGCONFIG_LIBS_PRIVATE@
+Requires.private: @COTP_PKGCONFIG_REQUIRES_PRIVATE@
 Cflags: -I${includedir}

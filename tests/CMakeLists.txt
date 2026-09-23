@@ -33,3 +33,28 @@ if (COTP_ENABLE_VALIDATION)
     target_link_libraries (test_validation PRIVATE cotp criterion)
     add_test (NAME TestValidation COMMAND test_validation)
 endif()
+
+# H2 regression: inject an allocation failure into finalize() and assert the
+# callers report MEMORY_ALLOCATION_ERROR. The library sources are compiled into
+# the test executable so that -Wl,--wrap=calloc catches library references
+# regardless of BUILD_SHARED_LIBS. GNU ld/LLD specific; skipped elsewhere.
+if (CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+    # SOURCE_FILES paths are relative to the top-level source dir.
+    set(_cotp_sources_abs "")
+    foreach(_cotp_src IN LISTS SOURCE_FILES)
+        list(APPEND _cotp_sources_abs "${CMAKE_SOURCE_DIR}/${_cotp_src}")
+    endforeach()
+    add_executable (test_alloc_failure test_alloc_failure.c ${_cotp_sources_abs})
+    target_include_directories (test_alloc_failure PRIVATE
+        ${CMAKE_SOURCE_DIR}/src
+        ${HMAC_INCLUDE_DIR})
+    target_link_libraries (test_alloc_failure PRIVATE criterion ${HMAC_LIBRARIES})
+    target_link_options (test_alloc_failure PRIVATE "LINKER:--wrap=calloc")
+    if (HAVE_EXPLICIT_BZERO)
+        target_compile_definitions (test_alloc_failure PRIVATE HAVE_EXPLICIT_BZERO)
+    endif()
+    if (COTP_ENABLE_VALIDATION)
+        target_compile_definitions (test_alloc_failure PRIVATE COTP_ENABLE_VALIDATION)
+    endif()
+    add_test (NAME TestAllocFailure COMMAND test_alloc_failure)
+endif()

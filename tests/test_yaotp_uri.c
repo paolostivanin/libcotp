@@ -1,7 +1,11 @@
 #include <criterion/criterion.h>
+#include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include "../src/cotp.h"
+
+// Mirrors YAOTP_OPAQUE_MAX in src/utils/yaotp_uri.c.
+#define YAOTP_TEST_OPAQUE_LIMIT 128
 
 static const char *kYandexUri =
     "otpauth://yaotp/alice%40yandex.ru"
@@ -193,4 +197,95 @@ Test(yaotp_uri, build_percent_encodes_account) {
 
 Test(yaotp_uri, free_null_is_safe) {
     cotp_yaotp_uri_free (NULL);
+}
+
+
+// Regression (H1): a query segment without '=' must not swallow later params.
+Test(yaotp_uri, parse_segment_without_equals_keeps_later_params) {
+    const char *uri = "otpauth://yaotp/user?foo&secret=LA2V6KMCGYMWWVEW64RNP3JA3IAAAAAAHTSG4HRZPI&pin_length=4";
+    cotp_error_t err = NO_ERROR;
+    cotp_yaotp_uri *u = cotp_yaotp_uri_parse (uri, &err);
+    cr_assert_not_null (u);
+    cr_expect_eq (err, NO_ERROR);
+    cr_expect_str_eq (u->secret, "LA2V6KMCGYMWWVEW64RNP3JA3IAAAAAAHTSG4HRZPI");
+    cr_expect_eq (u->pin_length, 4);
+    cotp_yaotp_uri_free (u);
+
+    const char *uri2 = "otpauth://yaotp/user?secret=LA2V6KMCGYMWWVEW64RNP3JA3IAAAAAAHTSG4HRZPI&foo&pin_length=4";
+    err = NO_ERROR;
+    u = cotp_yaotp_uri_parse (uri2, &err);
+    cr_assert_not_null (u);
+    cr_expect_eq (err, NO_ERROR);
+    cr_expect_eq (u->pin_length, 4);
+    cotp_yaotp_uri_free (u);
+}
+
+
+// Regression (H5): all-space secrets are rejected at the URI boundary.
+Test(yaotp_uri, parse_all_space_secret_rejected) {
+    const char *uri = "otpauth://yaotp/user?secret=%20&pin_length=4";
+    cotp_error_t err = NO_ERROR;
+    cr_expect_null (cotp_yaotp_uri_parse (uri, &err));
+    cr_expect_eq (err, INVALID_USER_INPUT);
+}
+
+Test(yaotp_uri, build_all_space_secret_rejected) {
+    cotp_yaotp_uri u = {0};
+    u.secret     = (char *)"   ";
+    u.pin_length = 4;
+    cotp_error_t err = NO_ERROR;
+    cr_expect_null (cotp_yaotp_uri_build (&u, &err));
+    cr_expect_eq (err, INVALID_USER_INPUT);
+}
+
+
+// Regression (H6): the parser caps track_id/uid at 128 decoded bytes; the
+// builder must enforce the same cap so it cannot emit unparseable URIs.
+Test(yaotp_uri, track_id_uid_128_byte_cap) {
+    char at_limit[YAOTP_TEST_OPAQUE_LIMIT + 1];
+    char over_limit[YAOTP_TEST_OPAQUE_LIMIT + 2];
+    memset (at_limit, 'a', YAOTP_TEST_OPAQUE_LIMIT);
+    at_limit[YAOTP_TEST_OPAQUE_LIMIT] = '\0';
+    memset (over_limit, 'a', YAOTP_TEST_OPAQUE_LIMIT + 1);
+    over_limit[YAOTP_TEST_OPAQUE_LIMIT + 1] = '\0';
+
+    cotp_error_t err = NO_ERROR;
+
+    // 128 decoded bytes round-trip through build + parse.
+    cotp_yaotp_uri u = {0};
+    u.secret     = (char *)"LA2V6KMCGYMWWVEW64RNP3JA3IAAAAAAHTSG4HRZPI";
+    u.track_id   = at_limit;
+    u.uid        = at_limit;
+    u.pin_length = 4;
+    char *built = cotp_yaotp_uri_build (&u, &err);
+    cr_assert_not_null (built);
+    cr_expect_eq (err, NO_ERROR);
+
+    cotp_yaotp_uri *back = cotp_yaotp_uri_parse (built, &err);
+    cr_assert_not_null (back);
+    cr_expect_str_eq (back->track_id, at_limit);
+    cr_expect_str_eq (back->uid, at_limit);
+    cotp_yaotp_uri_free (back);
+    free (built);
+
+    // 129 decoded bytes are rejected by both build and parse.
+    u.track_id = over_limit;
+    err = NO_ERROR;
+    cr_expect_null (cotp_yaotp_uri_build (&u, &err));
+    cr_expect_eq (err, INVALID_USER_INPUT);
+
+    u.track_id = at_limit;
+    u.uid = over_limit;
+    err = NO_ERROR;
+    cr_expect_null (cotp_yaotp_uri_build (&u, &err));
+    cr_expect_eq (err, INVALID_USER_INPUT);
+
+    char uri[1024];
+    int n = snprintf (uri, sizeof (uri),
+                      "otpauth://yaotp/user?secret=LA2V6KMCGYMWWVEW64RNP3JA3IAAAAAAHTSG4HRZPI&pin_length=4&track_id=%s",
+                      over_limit);
+    cr_assert (n > 0 && (size_t)n < sizeof (uri));
+    err = NO_ERROR;
+    cr_expect_null (cotp_yaotp_uri_parse (uri, &err));
+    cr_expect_eq (err, INVALID_USER_INPUT);
 }

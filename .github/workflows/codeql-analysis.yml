@@ -27,23 +27,17 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: Initialize CodeQL
-      uses: github/codeql-action/init@v2
+      uses: github/codeql-action/init@v3
       with:
         languages: ${{ matrix.language }}
-        
+
     - name: Install Dependencies
       run: |
-        sudo apt update && DEBIAN_FRONTEND=noninteractive sudo apt -y install git gcc cmake libgcrypt20-dev
-        git clone https://github.com/paolostivanin/libbaseencode ./be_dir && cd be_dir
-        mkdir build && cd build
-        cmake -DCMAKE_INSTALL_PREFIX=/usr ..
-        make
-        sudo make install
-        cd ../..
-    
+        sudo apt update && DEBIAN_FRONTEND=noninteractive sudo apt -y install gcc cmake libgcrypt20-dev
+
     - name: Build
       run: |
        mkdir build && cd $_
@@ -51,4 +45,4 @@ jobs:
        make
 
     - name: Perform CodeQL Analysis
-      uses: github/codeql-action/analyze@v2
+      uses: github/codeql-action/analyze@v3

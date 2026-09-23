@@ -15,6 +15,18 @@
 // keeps these short (UUID-like); refusing oversized values prevents URI-bomb-style allocations.
 #define YAOTP_OPAQUE_MAX     128
 
+// A secret made only of ASCII spaces (or empty) would later be normalized to an
+// empty string by the generators; reject it at the URI boundary instead.
+static int
+secret_is_blank (const char *s)
+{
+    if (!s) return 1;
+    for (; *s; s++) {
+        if (*s != ' ') return 0;
+    }
+    return 1;
+}
+
 static int
 parse_int (const char *s, size_t len, long *out)
 {
@@ -82,15 +94,24 @@ cotp_yaotp_uri_parse (const char *uri, cotp_error_t *err)
     if (qmark) {
         const char *qp = qmark + 1;
         while (*qp) {
-            const char *eq = strchr (qp, '=');
-            if (!eq) break;
+            const char *amp = strchr (qp, '&');
+            size_t seg_len = amp ? (size_t)(amp - qp) : strlen (qp);
+            const char *eq = memchr (qp, '=', seg_len);
+            if (!eq) {
+                // Segment without '=': skip it, but keep parsing the rest.
+                if (!amp) break;
+                qp = amp + 1;
+                continue;
+            }
             size_t key_len = (size_t)(eq - qp);
             const char *val = eq + 1;
-            const char *amp = strchr (val, '&');
-            size_t val_len = amp ? (size_t)(amp - val) : strlen (val);
+            size_t val_len = seg_len - key_len - 1;
 
             if (key_len == 6 && strncasecmp (qp, "secret", 6) == 0) {
-                free (u->secret);
+                if (u->secret) {
+                    cotp_secure_memzero (u->secret, strlen (u->secret));
+                    free (u->secret);
+                }
                 u->secret = cotp_pct_decode_n (val, val_len);
                 if (!u->secret) { cotp_yaotp_uri_free (u); *errp = INVALID_USER_INPUT; return NULL; }
             } else if (key_len == 6 && strncasecmp (qp, "issuer", 6) == 0) {
@@ -138,7 +159,7 @@ cotp_yaotp_uri_parse (const char *uri, cotp_error_t *err)
         }
     }
 
-    if (!u->secret || u->secret[0] == '\0') {
+    if (secret_is_blank (u->secret)) {
         cotp_yaotp_uri_free (u);
         *errp = INVALID_USER_INPUT;
         return NULL;
@@ -166,11 +187,17 @@ cotp_yaotp_uri_build (const cotp_yaotp_uri *u, cotp_error_t *err)
     cotp_error_t local_err = NO_ERROR;
     cotp_error_t *errp = err ? err : &local_err;
 
-    if (!u || !u->secret || u->secret[0] == '\0') { *errp = INVALID_USER_INPUT; return NULL; }
+    if (!u || secret_is_blank (u->secret))        { *errp = INVALID_USER_INPUT; return NULL; }
     if (!is_string_valid_b32 (u->secret))         { *errp = INVALID_B32_INPUT;  return NULL; }
     if (u->pin_length < COTP_YAOTP_MIN_PIN_LENGTH ||
         u->pin_length > COTP_YAOTP_MAX_PIN_LENGTH) {
         *errp = INVALID_YAOTP_PIN;
+        return NULL;
+    }
+    // Match the parser's cap so build() cannot emit a URI that parse() rejects.
+    if ((u->track_id && strlen (u->track_id) > YAOTP_OPAQUE_MAX) ||
+        (u->uid      && strlen (u->uid)      > YAOTP_OPAQUE_MAX)) {
+        *errp = INVALID_USER_INPUT;
         return NULL;
     }
 

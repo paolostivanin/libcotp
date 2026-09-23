@@ -100,20 +100,28 @@ elseif(MBEDTLS_INCLUDE_DIR)
     endif()
 endif()
 
+# MbedTLS 4.x may ship the crypto library only as tfpsacrypto; accept either.
+if(MBEDCRYPTO_LIBRARY OR TFPSACRYPTO_LIBRARY)
+    set(MBEDTLS_CRYPTO_FOUND TRUE)
+endif()
+
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(MbedTLS
         REQUIRED_VARS
         MBEDTLS_INCLUDE_DIR
         MBEDTLS_LIBRARY
         MBEDX509_LIBRARY
-        MBEDCRYPTO_LIBRARY
+        MBEDTLS_CRYPTO_FOUND
         VERSION_VAR
         MBEDTLS_VERSION
 )
 
 if(MBEDTLS_FOUND)
     set(MBEDTLS_INCLUDE_DIRS ${MBEDTLS_INCLUDE_DIR})
-    set(MBEDTLS_LIBRARIES    ${MBEDTLS_LIBRARY} ${MBEDX509_LIBRARY} ${MBEDCRYPTO_LIBRARY})
+    set(MBEDTLS_LIBRARIES    ${MBEDTLS_LIBRARY} ${MBEDX509_LIBRARY})
+    if(MBEDCRYPTO_LIBRARY)
+        list(APPEND MBEDTLS_LIBRARIES ${MBEDCRYPTO_LIBRARY})
+    endif()
     if(TFPSACRYPTO_LIBRARY)
         list(APPEND MBEDTLS_LIBRARIES ${TFPSACRYPTO_LIBRARY})
     endif()

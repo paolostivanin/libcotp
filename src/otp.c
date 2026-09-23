@@ -19,23 +19,9 @@ static size_t b32_decoded_len_from_str(const char *s) {
     return (chars * 5) / 8; // floor
 }
 
-#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
-#define REVERSE_BYTES(C, C_reverse_byte_order)           \
-    do {                                                     \
-        for (int j = 0, i = 7; j < 8; j++, i--) {           \
-            (C_reverse_byte_order)[i] = ((unsigned char *)&(C))[j]; \
-        }                                                    \
-    } while (0)
-#elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
-#define REVERSE_BYTES(C, C_reverse_byte_order)           \
-    do {                                                     \
-        for (int j = 0; j < 8; j++) {                        \
-            (C_reverse_byte_order)[j] = ((unsigned char *)&(C))[j]; \
-        }                                                    \
-    } while (0)
-#else
-    #error "Unknown endianness"
-#endif
+// Encode a counter as 8 big-endian bytes, independent of sizeof(long) and host endianness.
+static void encode_counter_be (long           counter,
+                               unsigned char  out[8]);
 
 static char  *normalize_secret (const char  *K);
 
@@ -120,9 +106,15 @@ get_hotp (const char   *secret,
         return NULL;
     }
 
+    char *token = finalize (digits, tk);
+    if (token == NULL) {
+        *errp = MEMORY_ALLOCATION_ERROR;
+        return NULL;
+    }
+
     *errp = NO_ERROR;
 
-    return finalize (digits, tk);
+    return token;
 }
 
 
@@ -154,6 +146,11 @@ get_totp_at (const char   *secret,
 
     if (check_period (period) == INVALID_PERIOD) {
         *errp = INVALID_PERIOD;
+        return NULL;
+    }
+
+    if (current_timestamp < 0) {
+        *errp = INVALID_COUNTER;
         return NULL;
     }
 
@@ -214,6 +211,11 @@ get_steam_totp_at (const char   *secret,
 
     if (check_period (period) == INVALID_PERIOD) {
         *errp = INVALID_PERIOD;
+        return NULL;
+    }
+
+    if (current_timestamp < 0) {
+        *errp = INVALID_COUNTER;
         return NULL;
     }
 
@@ -294,6 +296,17 @@ normalize_secret (const char *K)
         }
     }
     return nK;
+}
+
+
+static void
+encode_counter_be (long          counter,
+                   unsigned char out[8])
+{
+    uint64_t c = (uint64_t)counter;
+    for (int i = 0; i < 8; i++) {
+        out[i] = (unsigned char)(c >> (56 - 8 * i));
+    }
 }
 
 
@@ -400,7 +413,7 @@ compute_hmac (const char *K,
     }
 
     unsigned char C_reverse_byte_order[8];
-    REVERSE_BYTES(C, C_reverse_byte_order);
+    encode_counter_be (C, C_reverse_byte_order);
 
     cotp_error_t err = whmac_setkey (hd, secret, secret_len);
     if (err) {

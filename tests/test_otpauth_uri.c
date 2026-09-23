@@ -283,3 +283,91 @@ Test(otpauth, parse_empty_secret_value_rejected) {
     cr_expect_null (cotp_otpauth_uri_parse ("otpauth://totp/x?secret=", &err));
     cr_expect_eq (err, INVALID_USER_INPUT);
 }
+
+
+// Regression (H1): a query segment without '=' must not swallow the '=' of a
+// later segment. Parsing must continue with the remaining parameters.
+Test(otpauth, parse_segment_without_equals_keeps_later_params) {
+    cotp_error_t err = NO_ERROR;
+    cotp_otpauth_uri *u = cotp_otpauth_uri_parse ("otpauth://totp/x?foo&secret=JBSWY3DPEHPK3PXP", &err);
+    cr_assert_not_null (u);
+    cr_expect_eq (err, NO_ERROR);
+    cr_expect_str_eq (u->secret, "JBSWY3DPEHPK3PXP");
+    cotp_otpauth_uri_free (u);
+}
+
+Test(otpauth, parse_segment_without_equals_does_not_drop_following_params) {
+    cotp_error_t err = NO_ERROR;
+    cotp_otpauth_uri *u = cotp_otpauth_uri_parse ("otpauth://totp/x?secret=JBSWY3DPEHPK3PXP&foo&digits=8", &err);
+    cr_assert_not_null (u);
+    cr_expect_eq (err, NO_ERROR);
+    cr_expect_str_eq (u->secret, "JBSWY3DPEHPK3PXP");
+    cr_expect_eq (u->digits, 8);
+    cotp_otpauth_uri_free (u);
+}
+
+
+// Regression (H3): incomplete percent-escapes are malformed input, not literal.
+Test(otpauth, parse_trailing_percent_in_label_rejected) {
+    cotp_error_t err = NO_ERROR;
+    cr_expect_null (cotp_otpauth_uri_parse ("otpauth://totp/x%?secret=JBSWY3DPEHPK3PXP", &err));
+    cr_expect_eq (err, INVALID_USER_INPUT);
+
+    err = NO_ERROR;
+    cr_expect_null (cotp_otpauth_uri_parse ("otpauth://totp/x%4?secret=JBSWY3DPEHPK3PXP", &err));
+    cr_expect_eq (err, INVALID_USER_INPUT);
+}
+
+Test(otpauth, parse_incomplete_escape_in_value_rejected) {
+    const char *uris[] = {
+        "otpauth://totp/x?secret=AB%",
+        "otpauth://totp/x?secret=AB%4",
+        "otpauth://totp/x?secret=AB%G",
+    };
+    for (size_t i = 0; i < sizeof (uris) / sizeof (uris[0]); i++) {
+        cotp_error_t err = NO_ERROR;
+        cr_expect_null (cotp_otpauth_uri_parse (uris[i], &err), "%s", uris[i]);
+        cr_expect_eq (err, INVALID_USER_INPUT, "%s", uris[i]);
+    }
+}
+
+
+// Regression (H5): all-space secrets are rejected at the URI boundary, since
+// the generators would later normalize them to an empty string.
+Test(otpauth, parse_all_space_secret_rejected) {
+    const char *uris[] = {
+        "otpauth://totp/x?secret=%20",
+        "otpauth://totp/x?secret=%20%20%20",
+    };
+    for (size_t i = 0; i < sizeof (uris) / sizeof (uris[0]); i++) {
+        cotp_error_t err = NO_ERROR;
+        cr_expect_null (cotp_otpauth_uri_parse (uris[i], &err), "%s", uris[i]);
+        cr_expect_eq (err, INVALID_USER_INPUT, "%s", uris[i]);
+    }
+}
+
+Test(otpauth, build_all_space_secret_rejected) {
+    cotp_otpauth_uri u = {0};
+    u.type = COTP_OTPAUTH_TOTP;
+    u.secret = (char *)"   ";
+    u.algo = COTP_SHA1;
+    u.digits = 6;
+    u.period = 30;
+
+    cotp_error_t err = NO_ERROR;
+    cr_expect_null (cotp_otpauth_uri_build (&u, &err));
+    cr_expect_eq (err, INVALID_USER_INPUT);
+}
+
+
+// Regression (L11): ":account" must not produce an empty issuer that shadows
+// the &issuer= query parameter.
+Test(otpauth, parse_empty_label_issuer_does_not_shadow_query_issuer) {
+    cotp_error_t err = NO_ERROR;
+    cotp_otpauth_uri *u = cotp_otpauth_uri_parse ("otpauth://totp/:alice?secret=JBSWY3DPEHPK3PXP&issuer=Foo", &err);
+    cr_assert_not_null (u);
+    cr_expect_eq (err, NO_ERROR);
+    cr_expect_str_eq (u->issuer, "Foo");
+    cr_expect_str_eq (u->account, "alice");
+    cotp_otpauth_uri_free (u);
+}

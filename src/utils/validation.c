@@ -8,6 +8,41 @@
 
 #define COTP_MAX_VALIDATION_WINDOW 1024
 
+static int
+mul_overflow_long (long a, long b, long *out)
+{
+#if defined(__GNUC__) || defined(__clang__)
+    return __builtin_mul_overflow (a, b, out);
+#else
+    if (a == 0 || b == 0) { *out = 0; return 0; }
+    if (a > 0) {
+        if (b > 0) { if (a > LONG_MAX / b) return 1; }
+        else       { if (b < LONG_MIN / a) return 1; }
+    } else {
+        if (b > 0) { if (a < LONG_MIN / b) return 1; }
+        else       { if (a < LONG_MAX / b) return 1; }
+    }
+    *out = a * b;
+    return 0;
+#endif
+}
+
+static int
+add_overflow_long (long a, long b, long *out)
+{
+#if defined(__GNUC__) || defined(__clang__)
+    return __builtin_add_overflow (a, b, out);
+#else
+    if (b > 0) {
+        if (a > LONG_MAX - b) return 1;
+    } else if (b < 0) {
+        if (a < LONG_MIN - b) return 1;
+    }
+    *out = a + b;
+    return 0;
+#endif
+}
+
 int validate_totp_in_window(const char* user_code,
                             const char* base32_encoded_secret,
                             long        timestamp,
@@ -23,11 +58,17 @@ int validate_totp_in_window(const char* user_code,
         if (err_code) *err_code = INVALID_USER_INPUT;
         return 0;
     }
+    if (timestamp < 0) {
+        if (err_code) *err_code = INVALID_COUNTER;
+        return 0;
+    }
 
-    // Normalize window: handle INT_MIN safely (negation would overflow)
+    // Normalize window: INT_MIN cannot be negated, so reject it explicitly.
     if (window == INT_MIN) {
-        window = COTP_MAX_VALIDATION_WINDOW;
-    } else if (window < 0) {
+        if (err_code) *err_code = INVALID_USER_INPUT;
+        return 0;
+    }
+    if (window < 0) {
         window = -window;
     }
     if (window > COTP_MAX_VALIDATION_WINDOW) {
@@ -41,9 +82,13 @@ int validate_totp_in_window(const char* user_code,
     for (int delta = -window; delta <= window; ++delta) {
         long step;
         long t;
-        if (__builtin_mul_overflow((long)delta, (long)period, &step) ||
-            __builtin_add_overflow(timestamp, step, &t)) {
+        if (mul_overflow_long((long)delta, (long)period, &step) ||
+            add_overflow_long(timestamp, step, &t)) {
             // Skip deltas whose timestamp would overflow long
+            continue;
+        }
+        if (t < 0) {
+            // Generators reject negative timestamps; skip pre-epoch window offsets.
             continue;
         }
         cotp_error_t err = NO_ERROR;

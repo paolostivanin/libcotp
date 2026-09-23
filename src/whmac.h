@@ -1,5 +1,14 @@
 #pragma once
 
+#include <stddef.h>
+
+#if defined(_MSC_VER)
+#include <BaseTsd.h>
+typedef SSIZE_T ssize_t;
+#else
+#include <sys/types.h>  /* ssize_t */
+#endif
+
 typedef struct whmac_handle_s whmac_handle_t;
 
 int             whmac_check      (void);

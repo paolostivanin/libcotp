@@ -116,19 +116,62 @@ Test(validation, test_window_above_max_rejected) {
 }
 
 
-Test(validation, test_window_int_min_safe) {
+Test(validation, test_window_int_min_rejected) {
     const char *K = "12345678901234567890";
 
     cotp_error_t cotp_err;
     char *K_base32 = base32_encode ((const uint8_t *)K, strlen(K)+1, &cotp_err);
 
-    // INT_MIN must not crash via -INT_MIN; should be clamped, then exceeding-max rejected
+    // INT_MIN cannot be negated safely, so it is rejected explicitly.
     cotp_error_t err = NO_ERROR;
     int result = validate_totp_in_window ("12345678", K_base32, 59, 8, 30, COTP_SHA1, INT_MIN, NULL, &err);
     cr_expect_eq (result, 0);
-    // INT_MIN is normalized to MAX_WINDOW (1024) which is the boundary; either it runs through without finding a match (NO_ERROR) or hits the > MAX rejection — both are acceptable outcomes here, the assertion is "doesn't crash".
+    cr_expect_eq (err, INVALID_USER_INPUT);
 
     free (K_base32);
+}
+
+
+Test(validation, test_pre_epoch_window_offsets_skipped) {
+    const char *K = "12345678901234567890";
+
+    cotp_error_t cotp_err;
+    char *K_base32 = base32_encode ((const uint8_t *)K, strlen(K)+1, &cotp_err);
+
+    // Timestamp 10 with window=2 and period 30 reaches t < 0 at delta=-1/-2.
+    // Those offsets are skipped (generators reject negative timestamps), so the
+    // delta=0 self-match must still be found.
+    cotp_error_t err = NO_ERROR;
+    char *totp = get_totp_at (K_base32, 10, 8, 30, COTP_SHA1, &err);
+    cr_assert_not_null (totp);
+
+    int matched_delta = -999;
+    int result = validate_totp_in_window (totp, K_base32, 10, 8, 30, COTP_SHA1, 2, &matched_delta, &err);
+    cr_expect_eq (result, 1);
+    cr_expect_eq (matched_delta, 0);
+    cr_expect_eq (err, VALID);
+
+    free (totp);
+    free (K_base32);
+}
+
+
+Test(validation, test_negative_base_timestamp_rejected) {
+    const char *secret = "JBSWY3DPEHPK3PXP";
+    cotp_error_t err = NO_ERROR;
+    char *code = get_totp_at (secret, 29, 6, 30, COTP_SHA1, &err);
+    cr_assert_not_null (code);
+
+    // The +1 offset reaches a valid timestamp, but the base timestamp itself
+    // is invalid and must not be accepted as a validation request.
+    int matched_delta = -1;
+    int matched = validate_totp_in_window (code, secret, -1, 6, 30,
+                                            COTP_SHA1, 1, &matched_delta, &err);
+    cr_expect_eq (matched, 0);
+    cr_expect_eq (matched_delta, 0);
+    cr_expect_eq (err, INVALID_COUNTER);
+
+    free (code);
 }
 
 

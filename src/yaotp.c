@@ -185,6 +185,11 @@ get_yaotp_at (const char   *base32_secret,
         return NULL;
     }
 
+    if (timestamp < 0) {
+        *errp = INVALID_COUNTER;
+        return NULL;
+    }
+
     unsigned char key[YAOTP_KEY_BYTES];
     int pin_len = 0;
     if (yaotp_parse_secret (base32_secret, key, &pin_len, errp) != 0) {

@@ -2,6 +2,7 @@ FROM archlinux:latest
 
 ARG BRANCH=master
 
+# PKGBUILD bootstraps yay-bin, which installs the AUR criterion package below.
 COPY PKGBUILD /tmp/PKGBUILD
 
 RUN pacman -Syu --noconfirm ; \
@@ -19,16 +20,14 @@ USER root
 RUN pacman -U /home/test/*zst --noconfirm
 
 USER test
-RUN yay -S criterion --noconfirm ; \
-    gpg --keyserver pool.sks-keyservers.net --recv-keys 4EC1EA64 ; \
-    yay -S libbaseencode --noconfirm
+RUN yay -S criterion --noconfirm
 
 USER root
 RUN git clone https://github.com/paolostivanin/libcotp -b $BRANCH ; \
     cd libcotp ; \
     mkdir build && cd $_ ; \
-    cmake .. -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_TESTING=ON ; \
+    cmake .. -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_TESTS=ON -DCOTP_ENABLE_VALIDATION=ON ; \
     make -j2 ;\
-    ./tests/test_cotp ;\
+    ctest --output-on-failure ;\
     make install
 

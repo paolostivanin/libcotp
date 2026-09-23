@@ -211,6 +211,18 @@ Test(yaotp, pin_length_error_paths) {
     cr_expect_eq (cotp_yaotp_secret_pin_length (kSecret4, NULL), 4);
 }
 
+Test(yaotp, negative_timestamp_rejected) {
+    // H4: YAOTP must reject negative timestamps like TOTP/HOTP instead of
+    // encoding a negative counter as a huge unsigned value.
+    const long bad[] = { -1, -29, -30, -1000 };
+    for (size_t i = 0; i < sizeof (bad) / sizeof (bad[0]); i++) {
+        cotp_error_t err = NO_ERROR;
+        char *code = get_yaotp_at (kSecret4, kPin4, bad[i], &err);
+        cr_expect_null (code, "timestamp=%ld", bad[i]);
+        cr_expect_eq (err, INVALID_COUNTER, "timestamp=%ld", bad[i]);
+    }
+}
+
 Test(yaotp, null_err_code_ok) {
     // get_yaotp_at supports a NULL err_code; it must not crash and must still compute.
     char *code = get_yaotp_at (kSecret4, kPin4, 1581064020L, NULL);

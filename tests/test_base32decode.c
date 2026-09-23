@@ -166,6 +166,49 @@ Test(b32_decode_test, b32_no_padding_valid) {
 }
 
 
+// Regression (C2): a NULL err_code must be handled via an internal variable on
+// both the success and the error paths, matching the OTP generator APIs.
+Test(b32_decode_test, null_err_code) {
+    uint8_t *out = base32_decode ("MZXW6===", 8, NULL);
+    cr_assert_not_null (out);
+    cr_expect_str_eq ((char *)out, "foo");
+    free (out);
+
+    // Error paths must not dereference the missing pointer.
+    cr_expect_null (base32_decode ("£&/", 4, NULL));
+    cr_expect_null (base32_decode (NULL, 0, NULL));
+
+    // Empty input returns an allocated empty string.
+    out = base32_decode ("", 0, NULL);
+    cr_assert_not_null (out);
+    cr_expect_str_eq ((char *)out, "");
+    free (out);
+}
+
+
+// H5: validation must not allocate (same result with and without spaces, and
+// OOM cannot be conflated with "invalid"). The general codec's empty-input
+// behavior — including an all-space input decoding to an empty buffer — stays.
+Test(b32_decode_test, is_string_valid_b32_ignores_spaces) {
+    cr_expect (is_string_valid_b32 (NULL) == false);
+    cr_expect (is_string_valid_b32 ("MZ XW 6Y TB") == true);
+    cr_expect (is_string_valid_b32 ("MZXW6YTB") == true);
+    cr_expect (is_string_valid_b32 (" ") == true);          // empty after stripping
+    cr_expect (is_string_valid_b32 ("MZX\tW6YTB") == false); // tabs are still invalid
+    cr_expect (is_string_valid_b32 ("MY=W======") == false); // padding in the middle
+    cr_expect (is_string_valid_b32 ("MZXW6Y==") == false);   // invalid padding count
+}
+
+Test(b32_decode_test, all_space_input_decodes_to_empty) {
+    cotp_error_t err = NO_ERROR;
+    uint8_t *out = base32_decode (" ", 1, &err);
+    cr_assert_not_null (out);
+    cr_expect_eq (err, NO_ERROR);
+    cr_expect_str_eq ((char *)out, "");
+    free (out);
+}
+
+
 // Regression: caller-supplied data_len longer than the actual NUL-terminated
 // content (e.g., embedded NUL inside the buffer) must not over-read.
 // Discovered by libFuzzer.

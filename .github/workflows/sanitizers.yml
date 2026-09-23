@@ -58,7 +58,7 @@ jobs:
           CC=clang cmake -DCOTP_BUILD_FUZZERS=ON ..
 
       - name: Build fuzzers
-        run: cmake --build build --parallel --target fuzz_base32_decode fuzz_get_totp_at fuzz_otpauth_uri
+        run: cmake --build build --parallel --target fuzz_base32_decode fuzz_base32_encode fuzz_get_totp_at fuzz_otpauth_uri fuzz_yaotp_uri
 
       - name: Smoke run each fuzzer for 30s
         env:
@@ -66,5 +66,7 @@ jobs:
           UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
         run: |
           ./build/fuzz/fuzz_base32_decode -max_total_time=30
+          ./build/fuzz/fuzz_base32_encode -max_total_time=30
           ./build/fuzz/fuzz_get_totp_at   -max_total_time=30
           ./build/fuzz/fuzz_otpauth_uri   -max_total_time=30
+          ./build/fuzz/fuzz_yaotp_uri     -max_total_time=30

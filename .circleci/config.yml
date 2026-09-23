@@ -1,6 +1,22 @@
 version: 2.0
 
 jobs:
+  debianStable_i386_gcrypt:
+    docker:
+      - image: i386/debian:stable
+    steps:
+      - run:
+          command: |
+            export DEBIAN_FRONTEND=noninteractive
+            apt-get update
+            apt-get install -y git gcc cmake libcriterion-dev libgcrypt20-dev
+      - checkout
+      - run:
+          command: |
+            test "$(getconf LONG_BIT)" = 32
+            cmake -S . -B build-32 -DBUILD_TESTS=ON -DCOTP_ENABLE_VALIDATION=ON
+            cmake --build build-32 --parallel
+            ctest --test-dir build-32 --output-on-failure
   debianStable_gcrypt:
     docker:
       - image: debian:stable
@@ -11,11 +27,9 @@ jobs:
             export DEBIAN_FRONTEND=noninteractive
             apt update && apt -y install git gcc clang cmake libcriterion-dev libgcrypt20-dev
             mkdir build && cd "$_"
-            cmake -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_TESTS=ON ..
+            cmake -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_TESTS=ON -DCOTP_ENABLE_VALIDATION=ON ..
             make && make install
-            ./tests/test_base32encode
-            ./tests/test_base32decode
-            ./tests/test_cotp
+            ctest --output-on-failure
   ubuntu2404_gcrypt:
     docker:
       - image: ubuntu:24.04
@@ -26,11 +40,9 @@ jobs:
             export DEBIAN_FRONTEND=noninteractive
             apt update && apt -y install git gcc clang cmake libcriterion-dev libgcrypt20-dev
             mkdir build && cd "$_"
-            cmake -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_TESTS=ON ..
+            cmake -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_TESTS=ON -DCOTP_ENABLE_VALIDATION=ON ..
             make && make install
-            ./tests/test_base32encode
-            ./tests/test_base32decode
-            ./tests/test_cotp
+            ctest --output-on-failure
   debianStable_openssl:
     docker:
       - image: debian:stable
@@ -41,11 +53,9 @@ jobs:
             export DEBIAN_FRONTEND=noninteractive
             apt update && apt -y install git gcc clang cmake libcriterion-dev libssl-dev
             mkdir build && cd "$_"
-            cmake -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_TESTS=ON -DHMAC_WRAPPER=openssl ..
+            cmake -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_TESTS=ON -DCOTP_ENABLE_VALIDATION=ON -DHMAC_WRAPPER=openssl ..
             make && make install
-            ./tests/test_base32encode
-            ./tests/test_base32decode
-            ./tests/test_cotp
+            ctest --output-on-failure
   ubuntu2404_openssl:
     docker:
       - image: ubuntu:24.04
@@ -56,11 +66,9 @@ jobs:
             export DEBIAN_FRONTEND=noninteractive
             apt update && apt -y install git gcc clang cmake libcriterion-dev libssl-dev
             mkdir build && cd "$_"
-            cmake -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_TESTS=ON -DHMAC_WRAPPER=openssl ..
+            cmake -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_TESTS=ON -DCOTP_ENABLE_VALIDATION=ON -DHMAC_WRAPPER=openssl ..
             make && make install
-            ./tests/test_base32encode
-            ./tests/test_base32decode
-            ./tests/test_cotp
+            ctest --output-on-failure
   debianStable_mbedtls:
     docker:
       - image: debian:stable
@@ -71,11 +79,9 @@ jobs:
             export DEBIAN_FRONTEND=noninteractive
             apt update && apt -y install git gcc clang cmake libcriterion-dev libmbedtls-dev
             mkdir build && cd "$_"
-            cmake -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_TESTS=ON -DHMAC_WRAPPER=mbedtls ..
+            cmake -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_TESTS=ON -DCOTP_ENABLE_VALIDATION=ON -DHMAC_WRAPPER=mbedtls ..
             make && make install
-            ./tests/test_base32encode
-            ./tests/test_base32decode
-            ./tests/test_cotp
+            ctest --output-on-failure
   ubuntu2404_mbedtls:
     docker:
       - image: ubuntu:24.04
@@ -86,15 +92,14 @@ jobs:
             export DEBIAN_FRONTEND=noninteractive
             apt update && apt -y install git gcc clang cmake libcriterion-dev libmbedtls-dev
             mkdir build && cd "$_"
-            cmake -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_TESTS=ON -DHMAC_WRAPPER=mbedtls ..
+            cmake -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_TESTS=ON -DCOTP_ENABLE_VALIDATION=ON -DHMAC_WRAPPER=mbedtls ..
             make && make install
-            ./tests/test_base32encode
-            ./tests/test_base32decode
-            ./tests/test_cotp
+            ctest --output-on-failure
 workflows:
   version: 2
   build:
     jobs:
+      - debianStable_i386_gcrypt
       - debianStable_gcrypt
       - ubuntu2404_gcrypt
       - debianStable_openssl

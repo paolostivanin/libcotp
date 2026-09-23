@@ -20,7 +20,10 @@ cotp_pct_decode_n (const char *in, size_t len)
     if (!out) return NULL;
     size_t j = 0;
     for (size_t i = 0; i < len; i++) {
-        if (in[i] == '%' && i + 2 < len) {
+        if (in[i] == '%') {
+            // A '%' must be followed by two hex digits; a trailing '%' or a
+            // truncated escape (e.g. "%4") is malformed, not literal input.
+            if (i + 2 >= len) { free (out); return NULL; }
             int hi = hex_val (in[i+1]);
             int lo = hex_val (in[i+2]);
             if (hi < 0 || lo < 0) { free (out); return NULL; }

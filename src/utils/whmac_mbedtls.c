@@ -242,6 +242,9 @@ whmac_setkey (whmac_handle_t *hd,
               const unsigned char *buffer,
               size_t buflen)
 {
+    if (hd == NULL) {
+        return WHMAC_ERROR;
+    }
     int ret = mbedtls_md_hmac_starts (&(hd->sha_ctx), buffer, buflen);
     if (ret != 0) {
         return WHMAC_ERROR;

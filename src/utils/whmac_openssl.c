@@ -75,6 +75,14 @@ whmac_setkey (whmac_handle_t *hd,
               const unsigned char  *buffer,
               size_t          buflen)
 {
+    if (hd == NULL) {
+        return WHMAC_ERROR;
+    }
+    if (hd->ctx != NULL) {
+        // Re-keying an existing handle must not leak the previous context.
+        EVP_MAC_CTX_free (hd->ctx);
+        hd->ctx = NULL;
+    }
     hd->ctx = EVP_MAC_CTX_new (hd->mac);
     if (hd->ctx == NULL) {
         return WHMAC_ERROR;

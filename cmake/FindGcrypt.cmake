@@ -31,4 +31,10 @@ if(GCRYPT_INCLUDE_DIR AND EXISTS "${GCRYPT_INCLUDE_DIR}/gcrypt.h")
 endif()
 
 include(FindPackageHandleStandardArgs)
-find_package_handle_standard_args(Gcrypt DEFAULT_MSG GCRYPT_LIBRARIES GCRYPT_INCLUDE_DIR)
+find_package_handle_standard_args(Gcrypt
+    REQUIRED_VARS
+        GCRYPT_LIBRARIES
+        GCRYPT_INCLUDE_DIR
+    VERSION_VAR
+        GCRYPT_VERSION_STRING
+)

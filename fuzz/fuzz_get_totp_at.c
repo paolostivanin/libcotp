@@ -32,6 +32,12 @@ int LLVMFuzzerTestOneInput (const uint8_t *data, size_t size) {
     char *hotp = get_hotp (secret, ts < 0 ? 0 : ts, digits, algo, &err);
     free (hotp);
 
+    char *steam = get_steam_totp_at (secret, ts, period, &err);
+    free (steam);
+
+    char *yaotp = get_yaotp_at (secret, "0000", ts, &err);
+    free (yaotp);
+
     free (secret);
     return 0;
 }

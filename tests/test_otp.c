@@ -14,6 +14,7 @@ Test(totp_rfc6238, test_8_digits_sha1) {
     cotp_error_t err;
     char *totp;
     for (int i = 0; i < 6; i++) {
+        if (counter[i] > LONG_MAX) continue;
         totp = get_totp_at (K_base32, counter[i], 8, 30, COTP_SHA1, &err);
         cr_expect_str_eq (totp, expected_totp[i], "Expected %s to be equal to %s\n", totp, expected_totp[i]);
         free (totp);
@@ -32,6 +33,7 @@ Test(totp_rfc6238, test_8_digits_sha1_toint) {
 
     cotp_error_t err;
     for (int i = 0; i < 6; i++) {
+        if (counter[i] > LONG_MAX) continue;
         char *totp_str = get_totp_at (K_base32, counter[i], 8, 30, COTP_SHA1, &err);
         int64_t totp = otp_to_int (totp_str, &err);
         cr_expect_eq (totp, expected_totp[i], "Expected %08ld to be equal to %08ld\n", totp, expected_totp[i]);
@@ -86,6 +88,7 @@ Test(totp_rfc6238, test_8_digits_sha256) {
     cotp_error_t err;
     char *totp;
     for (int i = 0; i < 6; i++) {
+        if (counter[i] > LONG_MAX) continue;
         totp = get_totp_at (K_base32, counter[i], 8, 30, COTP_SHA256, &err);
         cr_expect_str_eq (totp, expected_totp[i], "Expected %s to be equal to %s\n", totp, expected_totp[i]);
         free (totp);
@@ -105,6 +108,7 @@ Test(totp_rfc6238, test_8_digits_sha512) {
     cotp_error_t err;
     char *totp;
     for (int i = 0; i < 6; i++) {
+        if (counter[i] > LONG_MAX) continue;
         totp = get_totp_at (K_base32, counter[i], 8, 30, COTP_SHA512, &err);
         cr_expect_str_eq (totp, expected_totp[i], "Expected %s to be equal to %s\n", totp, expected_totp[i]);
         free (totp);
@@ -680,6 +684,62 @@ Test(hotp_rfc, test_large_counter) {
 }
 
 
+// Regression (C1): the counter must be encoded as exactly 8 big-endian bytes,
+// independent of sizeof(long) and host endianness. Known answers computed with
+// an independent HMAC-SHA1 implementation for the RFC 4226 Appendix D secret.
+// Counters representable by 32-bit long run on both ILP32 and LP64; wider
+// counters add coverage for truncation and sign/width bugs on LP64.
+Test(hotp_rfc, test_counter_big_endian_known_answers) {
+    const char *K = "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ";
+
+    struct {
+        long        counter;
+        const char *expected;
+    } vectors[] = {
+        { 0L,           "755224" },
+        { 1L,           "287082" },
+        { 2147483647L,  "223505" },
+#if LONG_MAX > 2147483647L
+        { 4294967295L,  "117190" },
+        { 4294967296L,  "999456" },
+        { 4294967297L,  "108930" },
+        { 12345678901L, "814677" },
+        { LONG_MAX,     "181742" },
+#endif
+    };
+
+    for (size_t i = 0; i < sizeof (vectors) / sizeof (vectors[0]); i++) {
+        cotp_error_t err = NO_ERROR;
+        char *hotp = get_hotp (K, vectors[i].counter, 6, COTP_SHA1, &err);
+        cr_assert_not_null (hotp, "counter=%ld", vectors[i].counter);
+        cr_expect_eq (err, NO_ERROR, "counter=%ld", vectors[i].counter);
+        cr_expect_str_eq (hotp, vectors[i].expected,
+                          "counter=%ld", vectors[i].counter);
+        free (hotp);
+    }
+}
+
+
+// Regression (H4): negative timestamps are rejected consistently, including
+// values whose truncated counter would be 0 (-1 .. -period+1).
+Test(totp_boundary, test_negative_timestamp_rejected) {
+    const char *K = "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ";
+    const long bad[] = { -1, -29, -30, -31, -1000, LONG_MIN };
+
+    for (size_t i = 0; i < sizeof (bad) / sizeof (bad[0]); i++) {
+        cotp_error_t err = NO_ERROR;
+        char *totp = get_totp_at (K, bad[i], 6, 30, COTP_SHA1, &err);
+        cr_expect_null (totp, "timestamp=%ld", bad[i]);
+        cr_expect_eq (err, INVALID_COUNTER, "timestamp=%ld", bad[i]);
+    }
+
+    cotp_error_t err = NO_ERROR;
+    char *steam = get_steam_totp_at (K, -1, 30, &err);
+    cr_expect_null (steam);
+    cr_expect_eq (err, INVALID_COUNTER);
+}
+
+
 // Regression: 10-digit OTP must be exactly 10 digits (no negative/sign artefacts).
 Test(totp_boundary, test_10_digits_no_sign_artefact) {
     const char *K = "12345678901234567890";
@@ -688,8 +748,12 @@ Test(totp_boundary, test_10_digits_no_sign_artefact) {
     char *K_base32 = base32_encode ((const uint8_t *)K, strlen(K)+1, &cotp_err);
 
     // Sweep several timestamps to exercise different bin_code values.
-    const long timestamps[] = {1, 31, 61, 1234567890, 2000000000, 20000000000};
-    for (int i = 0; i < 6; i++) {
+    const long timestamps[] = {1, 31, 61, 1234567890, 2000000000,
+#if LONG_MAX > 2147483647L
+                               20000000000L,
+#endif
+    };
+    for (size_t i = 0; i < sizeof (timestamps) / sizeof (timestamps[0]); i++) {
         cotp_error_t err = NO_ERROR;
         char *totp = get_totp_at (K_base32, timestamps[i], 10, 30, COTP_SHA1, &err);
         cr_assert_not_null (totp);

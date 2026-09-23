@@ -138,3 +138,25 @@ Test(b32_encode_test, test_input_all_zeroes) {
 
     free (encoded_str);
 }
+
+
+// Regression (C2): a NULL err_code must be handled via an internal variable on
+// both the success and the error paths, matching the OTP generator APIs.
+Test(b32_encode_test, null_err_code) {
+    const uint8_t data[] = "foo";
+
+    char *enc = base32_encode (data, 3, NULL);
+    cr_assert_not_null (enc);
+    cr_expect_str_eq (enc, "MZXW6===");
+    free (enc);
+
+    // Error paths must not dereference the missing pointer.
+    cr_expect_null (base32_encode (NULL, 3, NULL));
+    cr_expect_null (base32_encode (data, 65 * 1024 * 1024, NULL));
+
+    // Empty input returns an allocated empty string, as with a non-NULL err_code.
+    char *empty = base32_encode (data, 0, NULL);
+    cr_assert_not_null (empty);
+    cr_expect_str_eq (empty, "");
+    free (empty);
+}

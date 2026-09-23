@@ -106,10 +106,11 @@ target_include_directories(cotp
 
 if(NOT MSVC)
     target_compile_options(cotp PRIVATE
-            -Wall -Wextra -O3 -Wformat=2 -Wmissing-format-attribute -fstack-protector-strong -Wundef -Wmissing-format-attribute
+            -Wall -Wextra -Wformat=2 -Wmissing-format-attribute -fstack-protector-strong -Wundef -Wmissing-format-attribute
             -fdiagnostics-color=always -Wstrict-prototypes -Wunreachable-code -Wchar-subscripts -Wwrite-strings -Wpointer-arith -Wbad-function-cast
             -Wcast-align -Werror=format-security -Werror=implicit-function-declaration -Wno-sign-compare -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3
-            -fvisibility=hidden)
+            -fvisibility=hidden
+            $<$<CONFIG:Release>:-O3>)
 endif()
 
 if(NOT APPLE AND NOT MSVC)
@@ -165,6 +166,28 @@ install(FILES
 install(EXPORT cotpTargets NAMESPACE COTP:: DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/COTP)
 
 if (PkgConfig_FOUND)
+    # Let pkg-config expand the backend's own private link dependencies for
+    # fully static consumers (for example, libgcrypt also needs gpg-error).
+    # Keep Libs.private below as a fallback for installations without a backend
+    # .pc file and for the explicitly resolved library paths.
+    set(COTP_PKGCONFIG_REQUIRES_PRIVATE "")
+    if(HMAC_WRAPPER STREQUAL "gcrypt")
+        pkg_check_modules(COTP_GCRYPT_PC QUIET libgcrypt)
+        if(COTP_GCRYPT_PC_FOUND)
+            set(COTP_PKGCONFIG_REQUIRES_PRIVATE "libgcrypt")
+        endif()
+    elseif(HMAC_WRAPPER STREQUAL "openssl")
+        pkg_check_modules(COTP_OPENSSL_PC QUIET openssl)
+        if(COTP_OPENSSL_PC_FOUND)
+            set(COTP_PKGCONFIG_REQUIRES_PRIVATE "openssl")
+        endif()
+    elseif(HMAC_WRAPPER STREQUAL "mbedtls")
+        pkg_check_modules(COTP_MBEDTLS_PC QUIET mbedtls)
+        if(COTP_MBEDTLS_PC_FOUND)
+            set(COTP_PKGCONFIG_REQUIRES_PRIVATE "mbedtls")
+        endif()
+    endif()
+
     # Allow adding prefix if CMAKE_INSTALL_INCLUDEDIR not absolute.
     if(IS_ABSOLUTE "${CMAKE_INSTALL_INCLUDEDIR}")
         set(PKGCONFIG_TARGET_INCLUDES "${CMAKE_INSTALL_INCLUDEDIR}")
@@ -177,6 +200,21 @@ if (PkgConfig_FOUND)
     else()
         set(PKGCONFIG_TARGET_LIBS "\${exec_prefix}/${CMAKE_INSTALL_LIBDIR}")
     endif()
+
+    # Static consumers need the selected crypto backend on the link line.
+    # Derive -l flags from the resolved backend library paths.
+    set(COTP_PKGCONFIG_LIBS_PRIVATE "")
+    foreach(_cotp_lib IN LISTS HMAC_LIBRARIES)
+        if(_cotp_lib MATCHES "^-l")
+            string(APPEND COTP_PKGCONFIG_LIBS_PRIVATE " ${_cotp_lib}")
+        else()
+            get_filename_component(_cotp_libname "${_cotp_lib}" NAME_WE)
+            string(REGEX REPLACE "^lib" "" _cotp_libname "${_cotp_libname}")
+            if(_cotp_libname)
+                string(APPEND COTP_PKGCONFIG_LIBS_PRIVATE " -l${_cotp_libname}")
+            endif()
+        endif()
+    endforeach()
 
     configure_file("cotp.pc.in" "cotp.pc" @ONLY)
     install(FILES "${CMAKE_CURRENT_BINARY_DIR}/cotp.pc" DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig/)
