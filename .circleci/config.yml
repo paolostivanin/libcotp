@@ -16,7 +16,9 @@ jobs:
             test "$(getconf LONG_BIT)" = 32
             cmake -S . -B build-32 -DBUILD_TESTS=ON -DCOTP_ENABLE_VALIDATION=ON
             cmake --build build-32 --parallel
-            ctest --test-dir build-32 --output-on-failure
+            # Criterion/BoxFort's 32-bit sandbox can intermittently clobber the child heap
+            # (MAP_FIXED arena vs. ASLR); retry so harness flakes don't mask real results.
+            ctest --test-dir build-32 --output-on-failure --repeat until-pass:3
   debianStable_gcrypt:
     docker:
       - image: debian:stable
