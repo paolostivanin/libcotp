@@ -1,4 +1,4 @@
-version: 2.0
+version: 2.1
 
 jobs:
   debianStable_i386_gcrypt:
@@ -96,7 +96,6 @@ jobs:
             make && make install
             ctest --output-on-failure
 workflows:
-  version: 2
   build:
     jobs:
       - debianStable_i386_gcrypt
